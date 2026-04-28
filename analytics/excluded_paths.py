@@ -1,0 +1,15 @@
+EXCLUDE_PATHS = [
+    "/",
+    "/docs",
+    "/redoc",
+    "/openai.json",
+    "/health",
+    "/favicon.ico",
+    "/api/analytics",
+    "/api/bg-remover/clear-results",
+    "/static",
+    "/page",
+    "/cleanup",
+    "/api/auth",
+    "/templates",
+]

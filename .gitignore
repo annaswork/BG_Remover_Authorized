@@ -1,0 +1,6 @@
+﻿**/__pycache__/
+*.pyc
+static/results/
+.env
+venv_bg_remover/
+.vscode/
