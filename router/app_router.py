@@ -12,8 +12,6 @@ templates = Jinja2Templates(directory="templates")
 router = APIRouter(prefix="/api/bg-remover", tags=["bg-remover"])
 page_router = APIRouter(tags=["pages"])
 
-router = APIRouter(prefix="/api/bg-remover", tags=["bg-remover"])
-
 
 @router.get("/", response_model=dict)
 async def read_root():
