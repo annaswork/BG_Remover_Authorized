@@ -3,6 +3,7 @@ from database.database_funcs import connect_to_mongo, close_mongo_connection
 from analytics.middleware import AnalyticsMiddleware
 from analytics.excluded_paths import EXCLUDE_PATHS
 from router.app_router import router as bg_router, page_router
+from router.face_app_router import router as face_router
 from router.analytics_router import router as analytics_router
 from router.auth_router import router as auth_router
 
@@ -27,5 +28,6 @@ app.add_middleware(AnalyticsMiddleware, exclude_paths=EXCLUDE_PATHS)
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(page_router)         # / (UI)
 app.include_router(bg_router)           # /api/bg-remover
+app.include_router(face_router)         # /api/bg-remover/face-crop
 app.include_router(analytics_router)    # /api/analytics
 app.include_router(auth_router)         # /api/auth

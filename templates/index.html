@@ -210,6 +210,12 @@
     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16l4-4 4 4 4-8 4 8"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
     <span>BG Remover</span>
   </div>
+  <div class="nav-item" onclick="navigate('face')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <circle cx="12" cy="8" r="3"/><path d="M5 20c1.5-3 3.5-4.5 7-4.5s5.5 1.5 7 4.5"/><rect x="3" y="3" width="18" height="18" rx="4"/>
+    </svg>
+    <span>Face Detect & Crop</span>
+  </div>
 
   <div class="nav-section">Admin</div>
   <div class="nav-item" onclick="navigate('authorization')">
@@ -278,6 +284,82 @@
         </div>
       </div>
       <div class="alert" id="bg-alert"></div>
+    </div>
+  </div>
+
+  <!-- ── FACE DETECT & CROP PAGE ── -->
+  <div id="page-face" class="page">
+    <div class="page-header">
+      <h2>Face Detect & Crop</h2>
+      <p>Detect a single face, crop around it to specific dimensions, and remove the background.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">API Key</div>
+      <div class="form-row">
+        <label>X-API-Key — required to process images</label>
+        <input type="password" id="face-api-key" placeholder="Paste your API key here…"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Upload & Crop Settings</div>
+
+      <div class="drop-zone" id="face-drop-zone" onclick="document.getElementById('face-file-input').click()">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+        <p><strong>Click to upload</strong> or drag & drop</p>
+        <p style="margin-top:4px;font-size:0.75rem;">PNG, JPG, WEBP, HEIC supported</p>
+      </div>
+      <input type="file" id="face-file-input" accept="image/*"/>
+
+      <div class="form-row-inline" style="margin-top:18px;">
+        <div class="form-row">
+          <label>Width</label>
+          <input type="text" id="face-width" placeholder="e.g. 600"/>
+        </div>
+        <div class="form-row">
+          <label>Height</label>
+          <input type="text" id="face-height" placeholder="e.g. 800"/>
+        </div>
+        <div class="form-row">
+          <label>Unit</label>
+          <select id="face-unit">
+            <option value="px">Pixels (px)</option>
+            <option value="inch">Inches</option>
+            <option value="mm">Millimeters</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>DPI</label>
+          <input type="text" id="face-dpi" placeholder="96" value="96"/>
+        </div>
+      </div>
+
+      <div id="face-preview-section" style="display:none;margin-top:16px;">
+        <div class="preview-grid">
+          <div class="preview-box">
+            <img id="face-preview-original" src="" alt="Original"/>
+            <div class="preview-label">Original</div>
+          </div>
+          <div class="preview-box">
+            <img id="face-preview-result" src="" alt="Result" style="display:none;"/>
+            <div id="face-preview-placeholder" style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.85rem;">
+              Cropped face result will appear here
+            </div>
+            <div class="preview-label">Face Cropped</div>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" id="face-remove-btn" onclick="detectFaceCrop()">
+            <div class="spinner" id="face-remove-spinner"></div>
+            Detect Face & Crop
+          </button>
+          <button class="btn btn-ghost" onclick="resetFace()">Clear</button>
+          <a id="face-download-btn" class="btn btn-success" style="display:none;" download>Download</a>
+        </div>
+      </div>
+
+      <div class="alert" id="face-alert"></div>
     </div>
   </div>
 
@@ -651,6 +733,109 @@ function resetBg() {
   document.getElementById('preview-section').style.display = 'none';
   hideAlert('bg-alert');
   document.getElementById('download-btn').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+//  FACE DETECT & CROP
+// ═══════════════════════════════════════════════════════
+const faceDropZone = document.getElementById('face-drop-zone');
+const faceFileInput = document.getElementById('face-file-input');
+let faceSelectedFile = null;
+
+faceDropZone.addEventListener('dragover', e => { e.preventDefault(); faceDropZone.classList.add('drag-over'); });
+faceDropZone.addEventListener('dragleave', () => faceDropZone.classList.remove('drag-over'));
+faceDropZone.addEventListener('drop', e => {
+  e.preventDefault(); faceDropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) setFaceFile(f);
+});
+faceFileInput.addEventListener('change', () => { if (faceFileInput.files[0]) setFaceFile(faceFileInput.files[0]); });
+
+function setFaceFile(f) {
+  faceSelectedFile = f;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('face-preview-original').src = e.target.result;
+    document.getElementById('face-preview-result').style.display = 'none';
+    document.getElementById('face-preview-placeholder').style.display = 'flex';
+    document.getElementById('face-download-btn').style.display = 'none';
+    document.getElementById('face-preview-section').style.display = 'block';
+  };
+  reader.readAsDataURL(f);
+  hideAlert('face-alert');
+}
+
+async function detectFaceCrop() {
+  const key = document.getElementById('face-api-key').value.trim();
+  if (!key) { showAlert('face-alert', 'error', 'Please enter your API key.'); return; }
+  if (!faceSelectedFile) { showAlert('face-alert', 'error', 'Please select an image first.'); return; }
+
+  const widthStr = document.getElementById('face-width').value.trim();
+  const heightStr = document.getElementById('face-height').value.trim();
+  const unit = document.getElementById('face-unit').value;
+  const dpiStr = document.getElementById('face-dpi').value.trim() || '96';
+
+  const width = parseFloat(widthStr);
+  const height = parseFloat(heightStr);
+  const dpi = parseInt(dpiStr, 10);
+
+  if (!width || width <= 0 || !height || height <= 0) {
+    showAlert('face-alert', 'error', 'Width and height must be positive numbers.');
+    return;
+  }
+  if (!['px', 'inch', 'mm'].includes(unit)) {
+    showAlert('face-alert', 'error', 'Unit must be one of: px, inch, mm.');
+    return;
+  }
+  if (!dpi || dpi <= 0) {
+    showAlert('face-alert', 'error', 'DPI must be a positive integer.');
+    return;
+  }
+
+  setSpinner('face-remove-spinner', true);
+  document.getElementById('face-remove-btn').disabled = true;
+
+  const form = new FormData();
+  form.append('file', faceSelectedFile);
+  form.append('width', String(width));
+  form.append('height', String(height));
+  form.append('unit', unit);
+  form.append('dpi', String(dpi));
+
+  try {
+    const res = await fetch('/api/face_detect/', {
+      method: 'POST',
+      headers: { 'X-API-Key': key },
+      body: form
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const img = document.getElementById('face-preview-result');
+      img.src = data.image_url;
+      img.style.display = 'block';
+      document.getElementById('face-preview-placeholder').style.display = 'none';
+      const dl = document.getElementById('face-download-btn');
+      dl.href = data.image_url;
+      dl.download = data.filename;
+      dl.style.display = 'inline-flex';
+      showAlert('face-alert', 'success', data.message || 'Face detected and cropped successfully.');
+    } else {
+      showAlert('face-alert', 'error', data.detail || 'Face detect & crop failed.');
+    }
+  } catch (e) {
+    showAlert('face-alert', 'error', 'Connection error: ' + e.message);
+  }
+
+  setSpinner('face-remove-spinner', false);
+  document.getElementById('face-remove-btn').disabled = false;
+}
+
+function resetFace() {
+  faceSelectedFile = null;
+  faceFileInput.value = '';
+  document.getElementById('face-preview-section').style.display = 'none';
+  hideAlert('face-alert');
+  document.getElementById('face-download-btn').style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════════════

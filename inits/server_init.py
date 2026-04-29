@@ -13,6 +13,9 @@ import pillow_heif
 #import Environment variables
 import config.index as config_
 
+#Dependecy for Face Analysis
+from insightface.app import FaceAnalysis
+
 #============================================================================
 
 #INITIALIZE THE FASTAPI APP
@@ -38,6 +41,12 @@ app.mount(
     StaticFiles(directory=config_.STATIC_DIR),
     name=config_.STATIC_DIR
 )
+
+insightface_model = FaceAnalysis(
+    name=config_.INSIGHTFACE_MODEL,
+    root=config_.INSIGHTFACE_MODEL_ROOT,
+)
+insightface_model.prepare(ctx_id=-1)
 
 #============================================================================
 #configure CORS middleware
