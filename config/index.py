@@ -32,3 +32,7 @@ AUTHORIZATION_COLLECTION_NAME = "api_keys"
 #Image Path and URL Prefix
 IMAGE_PATH = "static/results/"
 IMAGE_URL_PREFIX = f"http://{IP}:{PORT}/static/"
+
+#InsightFace variables
+INSIGHTFACE_MODEL = "buffalo_l"
+INSIGHTFACE_MODEL_ROOT = f"C:/Users/muhammadannasasif/.insightface"
