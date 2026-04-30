@@ -216,6 +216,12 @@
     </svg>
     <span>Face Detect & Crop</span>
   </div>
+  <div class="nav-item" onclick="navigate('face-swap')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M7 7h10M7 17h10"/><path d="M10 7l-3 3 3 3"/><path d="M14 17l3-3-3-3"/><rect x="3" y="3" width="18" height="18" rx="4"/>
+    </svg>
+    <span>Face Swap</span>
+  </div>
 
   <div class="nav-section">Admin</div>
   <div class="nav-item" onclick="navigate('authorization')">
@@ -360,6 +366,71 @@
       </div>
 
       <div class="alert" id="face-alert"></div>
+    </div>
+  </div>
+
+  <!-- ── FACE SWAP PAGE ── -->
+  <div id="page-face-swap" class="page">
+    <div class="page-header">
+      <h2>Face Swap</h2>
+      <p>Upload a source face (exactly one face) and a target image (one or more faces). The source face will be swapped onto all faces in the target.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">API Key</div>
+      <div class="form-row">
+        <label>X-API-Key — required to process images</label>
+        <input type="password" id="swap-api-key" placeholder="Paste your API key here…"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Upload Images</div>
+
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Source Image (1 face)</label>
+          <input type="file" id="swap-source-file" accept="image/*"/>
+        </div>
+        <div class="form-row">
+          <label>Target Image (1+ faces)</label>
+          <input type="file" id="swap-target-file" accept="image/*"/>
+        </div>
+      </div>
+
+      <div id="swap-preview-section" style="display:none;margin-top:16px;">
+        <div class="preview-grid">
+          <div class="preview-box">
+            <img id="swap-preview-source" src="" alt="Source"/>
+            <div class="preview-label">Source</div>
+          </div>
+          <div class="preview-box">
+            <img id="swap-preview-target" src="" alt="Target"/>
+            <div class="preview-label">Target</div>
+          </div>
+        </div>
+
+        <div class="preview-grid" style="margin-top:16px;">
+          <div class="preview-box" style="grid-column:1 / -1;">
+            <img id="swap-preview-result" src="" alt="Result" style="display:none;"/>
+            <div id="swap-preview-placeholder" style="height:240px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.85rem;">
+              Swapped result will appear here
+            </div>
+            <div class="preview-label">Swapped Output</div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" id="swap-btn" onclick="swapFaces()">
+            <div class="spinner" id="swap-spinner"></div>
+            Swap Faces
+          </button>
+          <button class="btn btn-ghost" onclick="resetSwap()">Clear</button>
+          <a id="swap-download-btn" class="btn btn-success" style="display:none;" download>Download</a>
+        </div>
+      </div>
+
+      <div class="alert" id="swap-alert"></div>
     </div>
   </div>
 
@@ -836,6 +907,94 @@ function resetFace() {
   document.getElementById('face-preview-section').style.display = 'none';
   hideAlert('face-alert');
   document.getElementById('face-download-btn').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+//  FACE SWAP
+// ═══════════════════════════════════════════════════════
+const swapSourceInput = document.getElementById('swap-source-file');
+const swapTargetInput = document.getElementById('swap-target-file');
+let swapSourceFile = null;
+let swapTargetFile = null;
+
+function _previewFileToImg(file, imgId) {
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById(imgId).src = e.target.result; };
+  reader.readAsDataURL(file);
+}
+
+function _updateSwapPreviewVisibility() {
+  const show = !!(swapSourceFile && swapTargetFile);
+  document.getElementById('swap-preview-section').style.display = show ? 'block' : 'none';
+  if (show) {
+    document.getElementById('swap-preview-result').style.display = 'none';
+    document.getElementById('swap-preview-placeholder').style.display = 'flex';
+    document.getElementById('swap-download-btn').style.display = 'none';
+  }
+}
+
+swapSourceInput.addEventListener('change', () => {
+  swapSourceFile = swapSourceInput.files && swapSourceInput.files[0] ? swapSourceInput.files[0] : null;
+  if (swapSourceFile) _previewFileToImg(swapSourceFile, 'swap-preview-source');
+  hideAlert('swap-alert');
+  _updateSwapPreviewVisibility();
+});
+
+swapTargetInput.addEventListener('change', () => {
+  swapTargetFile = swapTargetInput.files && swapTargetInput.files[0] ? swapTargetInput.files[0] : null;
+  if (swapTargetFile) _previewFileToImg(swapTargetFile, 'swap-preview-target');
+  hideAlert('swap-alert');
+  _updateSwapPreviewVisibility();
+});
+
+async function swapFaces() {
+  const key = document.getElementById('swap-api-key').value.trim();
+  if (!key) { showAlert('swap-alert', 'error', 'Please enter your API key.'); return; }
+  if (!swapSourceFile || !swapTargetFile) { showAlert('swap-alert', 'error', 'Please select both source and target images.'); return; }
+
+  setSpinner('swap-spinner', true);
+  document.getElementById('swap-btn').disabled = true;
+
+  const form = new FormData();
+  form.append('source', swapSourceFile);
+  form.append('target', swapTargetFile);
+
+  try {
+    const res = await fetch('/api/face_detect/swap', {
+      method: 'POST',
+      headers: { 'X-API-Key': key },
+      body: form
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const img = document.getElementById('swap-preview-result');
+      img.src = data.image_url;
+      img.style.display = 'block';
+      document.getElementById('swap-preview-placeholder').style.display = 'none';
+      const dl = document.getElementById('swap-download-btn');
+      dl.href = data.image_url;
+      dl.download = data.filename || 'swapped.webp';
+      dl.style.display = 'inline-flex';
+      showAlert('swap-alert', 'success', data.message || 'Faces swapped successfully.');
+    } else {
+      showAlert('swap-alert', 'error', data.detail || 'Face swap failed.');
+    }
+  } catch(e) {
+    showAlert('swap-alert', 'error', 'Connection error: ' + e.message);
+  }
+
+  setSpinner('swap-spinner', false);
+  document.getElementById('swap-btn').disabled = false;
+}
+
+function resetSwap() {
+  swapSourceFile = null;
+  swapTargetFile = null;
+  swapSourceInput.value = '';
+  swapTargetInput.value = '';
+  document.getElementById('swap-preview-section').style.display = 'none';
+  hideAlert('swap-alert');
+  document.getElementById('swap-download-btn').style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════════════

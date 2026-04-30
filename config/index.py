@@ -36,3 +36,41 @@ IMAGE_URL_PREFIX = f"http://{IP}:{PORT}/static/"
 #InsightFace variables
 INSIGHTFACE_MODEL = "buffalo_l"
 INSIGHTFACE_MODEL_ROOT = f"C:/Users/muhammadannasasif/.insightface"
+
+# --------------------------------------------------------------------------------------
+# Models / paths
+# --------------------------------------------------------------------------------------
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Face detection (InsightFace FaceAnalysis)
+DETECTION_MODEL_NAME = os.getenv("DETECTION_MODEL_NAME", INSIGHTFACE_MODEL)
+DETECTION_MODEL_ROOT = os.getenv("DETECTION_MODEL_ROOT", INSIGHTFACE_MODEL_ROOT)
+
+try:
+    DETECTION_MODEL_CTX_ID = int(os.getenv("DETECTION_MODEL_CTX_ID", "-1"))
+except ValueError:
+    DETECTION_MODEL_CTX_ID = -1
+
+# Face swapper (inswapper_128.onnx)
+MODEL_PATH = os.getenv(
+    "INSWAPPER_MODEL_PATH",
+    os.path.join(ROOT_DIR, "models", "inswapper_128.onnx"),
+)
+
+# GFPGAN weights
+# GFPGAN_V1_3_PATH is kept for compatibility, but v1.3 is currently not used.
+GFPGAN_V1_3_PATH = os.getenv(
+    "GFPGAN_V1_3_PATH",
+    os.path.join(ROOT_DIR, "models", "GFPGANv1.3.pth"),
+)
+GFPGAN_V1_4_PATH = os.getenv(
+    "GFPGAN_V1_4_PATH",
+    os.path.join(ROOT_DIR, "models", "GFPGANv1.4.pth"),
+)
+
+# Models to use (Face Swap)
+INSWAPPER_ENABLE = True
+# GFPGAN1_3_ENABLE = True  # optional
+GFPGAN1_3_ENABLE = False
+GFPGAN1_4_ENABLE = True

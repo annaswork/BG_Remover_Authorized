@@ -4,3 +4,6 @@ static/results/
 .env
 venv_bg_remover/
 .vscode/
+models/GFPGANv1.4.pth
+models/inswapper_128.onnx
+gfpgan/

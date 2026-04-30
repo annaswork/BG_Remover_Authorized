@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Depends, Form, HTTPException
 from controller.auth_controller import require_api_key
-from controller.face_app_controller import detect_face_and_crop
+from controller.face_app_controller import detect_face_and_crop, face_swap
 
 
 router = APIRouter(prefix="/api/face_detect", tags=["face"])
@@ -27,5 +27,23 @@ async def face_crop(
         raise
     except Exception as e:
         # Safety net: controller should already normalize most errors.
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/swap", response_model=dict)
+async def swap_faces(
+    source: UploadFile = File(..., description="Source image (must contain exactly one face)"),
+    target: UploadFile = File(..., description="Target image (can contain one or more faces)"),
+    _auth: dict = Depends(require_api_key),
+):
+    """
+    Swap the face from the source image onto every detected face in the target image.
+    Requires a valid API key in the X-API-Key header.
+    """
+    try:
+        return await face_swap(source_file=source, target_file=target)
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

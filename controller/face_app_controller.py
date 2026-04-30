@@ -1,6 +1,7 @@
 import os
 from io import BytesIO
 import asyncio
+import time
 
 import cv2
 import numpy as np
@@ -10,8 +11,10 @@ import rembg
 from rembg import new_session
 
 import config.index as _config
-from inits.server_init import insightface_model, thread_pool
+from inits.server_init import thread_pool
+from inits.models_init import face_model, swapper, gfpgan_model
 from utils.preprocess_image import read_image, convert_to_cv2Image, generate_unique_path
+from utils.postprocess_image import save_img_with_url
 
 
 # Load the background-removal session once (CPU model can be heavy to create repeatedly)
@@ -141,13 +144,14 @@ def detect_face_and_crop_image(image, width, height, unit, dpi, filename, model)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+
 async def detect_face_and_crop(file: UploadFile, width: float, height: float, unit: str, dpi: int = 96) -> dict:
     """
     Async API-facing wrapper.
     Reads the upload, converts to cv2 image, and runs CPU-heavy logic in thread pool.
     """
 
-    if insightface_model is None:
+    if face_model is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Face detection model is not initialized on the server."
@@ -169,5 +173,136 @@ async def detect_face_and_crop(file: UploadFile, width: float, height: float, un
         unit,
         dpi,
         output_filename,
-        insightface_model,
+        face_model,
     )
+
+
+#===============================================================================================
+"""
+# This Function swap faces between 2 images (source and target image)
+# Source image should have only one face available
+# Target image can have 1 or more faces available for swapping
+"""
+def _detect_faces(image, model):
+    faces = model.get(image)
+    return faces, len(faces) if faces else 0
+
+
+def _swap_face_on_target(swapper_model, target_image, target_face, source_face):
+    """
+    InsightFace in-swapper API: swapper.get(target_img, target_face, source_face, paste_back=True)
+    """
+    if swapper_model is None:
+        raise ValueError("Face swapper model is not loaded on the server.")
+    swapped = swapper_model.get(target_image, target_face, source_face, paste_back=True)
+    return swapped
+
+
+def _enhance_image(image, enhancer):
+    """
+    GFPGANer.enhance(...) returns a tuple; we take the restored image.
+    If enhancer isn't available, return image unchanged.
+    """
+    if enhancer is None:
+        return image
+    try:
+        out = enhancer.enhance(image, has_aligned=False, only_center_face=False, paste_back=True)
+        # common shapes: (cropped_faces, restored_faces, restored_img) or (restored_img, ...)
+        if isinstance(out, tuple):
+            for item in reversed(out):
+                if isinstance(item, np.ndarray):
+                    return item
+            return out[-1]
+        return out
+    except Exception:
+        # Enhancement is optional; don't fail swap if enhancer errors out
+        return image
+
+
+def face_swap_func(source, target, swapper_model, model, enhancer, src_filename, tgt_filename):
+    """
+    Synchronous worker that performs face swap.
+    """
+    start_time = time.time()
+
+    if source is None:
+        raise ValueError("Source image is missing.")
+    if target is None:
+        raise ValueError("Target image is missing.")
+    if model is None:
+        raise ValueError("Face detection model is not loaded on the server.")
+
+    # Detect faces in source
+    source_faces, num_src_faces = _detect_faces(source, model)
+    if num_src_faces < 1:
+        raise ValueError("No face detected in source image.")
+    if num_src_faces > 1:
+        raise ValueError("Source image must contain exactly one face.")
+    detected_src_face = source_faces[0]
+
+    # Detect faces in target
+    target_faces, num_tgt_faces = _detect_faces(target, model)
+    if num_tgt_faces < 1:
+        raise ValueError("No face detected in target image.")
+
+    # Swap faces on target image
+    swapped_target = target
+    for tgt_face in target_faces:
+        swapped_target = _swap_face_on_target(swapper_model, swapped_target, tgt_face, detected_src_face)
+
+    if swapped_target is None or getattr(swapped_target, "size", 0) == 0:
+        raise ValueError("Failed to swap faces.")
+
+    enhanced_output_image = _enhance_image(swapped_target, enhancer)
+    if enhanced_output_image is None or getattr(enhanced_output_image, "size", 0) == 0:
+        raise ValueError("Failed to produce output image.")
+
+    output_filename = generate_unique_path(tgt_filename or "target.png")
+    image_url = save_img_with_url(enhanced_output_image, output_filename)
+    end_time = time.time()
+
+    return {
+        "message": "Faces swapped successfully",
+        "image_url": image_url,
+        "filename": output_filename,
+        "time_taken": f"{end_time - start_time:.2f}",
+    }
+
+
+async def face_swap(source_file: UploadFile, target_file: UploadFile) -> dict:
+    """
+    Async API wrapper. Reads uploads, converts to cv2, runs face swap in thread pool.
+    """
+    if face_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Face detection model is not initialized on the server.",
+        )
+    if swapper is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Face swapper model is not initialized on the server.",
+        )
+
+    src_pil = await read_image(source_file)
+    tgt_pil = await read_image(target_file)
+    src_cv2 = convert_to_cv2Image(src_pil.convert("RGB"))
+    tgt_cv2 = convert_to_cv2Image(tgt_pil.convert("RGB"))
+
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(
+            thread_pool,
+            face_swap_func,
+            src_cv2,
+            tgt_cv2,
+            swapper,
+            face_model,
+            gfpgan_model,
+            source_file.filename or "source.png",
+            target_file.filename or "target.png",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
