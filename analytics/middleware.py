@@ -3,6 +3,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 import time
 from typing import Callable
+import json
 from database.analytics_model import Analytics
 import analytics.crud as analytics_db
 import asyncio
@@ -73,6 +74,7 @@ class AnalyticsMiddleware(BaseHTTPMiddleware):
             except ValueError:
                 pass
         
+        response_body = b""
         if response_size == 0:
             response_body = b""
             async for chunk in response.body_iterator:
@@ -86,8 +88,32 @@ class AnalyticsMiddleware(BaseHTTPMiddleware):
                 headers=dict(response.headers),
                 media_type=response.media_type
             )
+        elif response.status_code >= 400:
+            # Capture body for error responses so we can persist reason in analytics.
+            async for chunk in response.body_iterator:
+                response_body += chunk
+
+            from starlette.responses import Response as StarletteResponse
+            response = StarletteResponse(
+                content=response_body,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                media_type=response.media_type
+            )
         
         total_bandwidth = request_size + response_size
+
+        error_reason = None
+        if response.status_code >= 400 and response_body:
+            try:
+                body_text = response_body.decode("utf-8", errors="replace")
+                parsed = json.loads(body_text)
+                if isinstance(parsed, dict):
+                    error_reason = parsed.get("detail") or parsed.get("message") or body_text
+                else:
+                    error_reason = body_text
+            except Exception:
+                error_reason = response_body.decode("utf-8", errors="replace")
         
         analytics_record = Analytics(
             method=request.method,
@@ -99,7 +125,8 @@ class AnalyticsMiddleware(BaseHTTPMiddleware):
             client_ip=client_ip,
             user_agent=user_agent,
             response_time_ms=round(response_time, 2),
-            app_name=app_name
+            app_name=app_name,
+            error_reason=error_reason
         )
         
         asyncio.create_task(analytics_db.create_analytics_record(analytics_record))

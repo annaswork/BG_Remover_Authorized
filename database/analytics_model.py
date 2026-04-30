@@ -17,6 +17,7 @@ class Analytics(BaseModel):
     user_agent: Optional[str] = Field(None, description="Analytics user agent")
     response_time_ms: Optional[float] = Field(None, description="Analytics response time in milliseconds")
     app_name: Optional[str] = Field(None, description="App name associated with the API key")
+    error_reason: Optional[str] = Field(None, description="Error detail for 4xx/5xx responses")
 
     @field_serializer('id')
     def serialize_id(self, value: ObjectId, _info):

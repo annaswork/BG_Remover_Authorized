@@ -112,6 +112,7 @@
   td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--surface2); }
+  tr.row-clickable { cursor: pointer; }
   .badge {
     display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
   }
@@ -627,6 +628,7 @@
             <span id="page-info" style="font-size:0.82rem;color:var(--muted);">Page 1</span>
             <button class="btn btn-ghost" id="next-btn" onclick="changePage(1)">Next →</button>
           </div>
+          <div id="analytics-error-detail" class="alert alert-info" style="margin-top:12px;display:none;"></div>
           <div class="alert" id="analytics-alert"></div>
         </div>
 
@@ -674,7 +676,8 @@
 // ═══════════════════════════════════════════════════════
 let adminKey = '';   // kept only in memory — never written to sessionStorage
 let currentPage = 0;
-const PAGE_LIMIT = 50;
+const PAGE_LIMIT = 10;
+let currentAnalyticsRecords = [];
 let chartRequests = null;
 let chartBandwidth = null;
 
@@ -1127,6 +1130,7 @@ async function loadSummary() {
 
 async function loadAnalytics() {
   setSpinner('analytics-spinner', true);
+  hideAnalyticsErrorDetail();
   const params = buildParams();
   params.set('skip', currentPage * PAGE_LIMIT);
   params.set('limit', PAGE_LIMIT);
@@ -1134,6 +1138,7 @@ async function loadAnalytics() {
     const res = await fetch('/api/analytics/?' + params);
     const data = await res.json();
     if (!res.ok) { showAlert('analytics-alert', 'error', data.detail || 'Failed.'); return; }
+    currentAnalyticsRecords = data.data || [];
     document.getElementById('analytics-total-badge').textContent = data.total + ' records';
     document.getElementById('page-info').textContent = `Page ${currentPage + 1}`;
     document.getElementById('prev-btn').disabled = currentPage === 0;
@@ -1141,10 +1146,11 @@ async function loadAnalytics() {
 
     const tbody = document.getElementById('analytics-tbody');
     if (!data.data.length) {
+      currentAnalyticsRecords = [];
       tbody.innerHTML = '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:24px;">No records found</td></tr>';
       return;
     }
-    tbody.innerHTML = data.data.map(r => `
+    tbody.innerHTML = data.data.map((r, idx) => `
       <tr>
         <td style="color:var(--muted);white-space:nowrap;font-size:0.75rem;">${formatDate(r.timestamp)}</td>
         <td>${r.app_name ? `<span class="badge badge-blue">${r.app_name}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
@@ -1153,10 +1159,31 @@ async function loadAnalytics() {
         <td><span class="badge ${r.status_code < 400 ? 'badge-green' : 'badge-red'}">${r.status_code}</span></td>
         <td style="font-size:0.78rem;">${r.response_time_ms ? r.response_time_ms + ' ms' : '—'}</td>
         <td style="font-size:0.78rem;">${formatBytes(r.total_bandwidth)}</td>
-      </tr>`).join('');
+      </tr>`.replace(
+        '<tr>',
+        `<tr class="${r.status_code >= 400 ? 'row-clickable' : ''}" ${r.status_code >= 400 ? `onclick="showAnalyticsRecord(${idx})"` : ''}>`
+      )
+    ).join('');
     loadSummary();
   } catch(e) { showAlert('analytics-alert', 'error', e.message); }
   setSpinner('analytics-spinner', false);
+}
+
+function showAnalyticsRecord(idx) {
+  const record = currentAnalyticsRecords[idx];
+  if (!record || record.status_code < 400) return;
+  const detail = record.error_reason || 'No error reason was captured for this request.';
+  const safeDetail = escapeHtml(String(detail));
+  const header = `${record.method || '—'} ${record.path || '—'} (${record.status_code || '—'})`;
+  const panel = document.getElementById('analytics-error-detail');
+  panel.innerHTML = `<strong>Error Detail:</strong> ${escapeHtml(header)}<br>${safeDetail}`;
+  panel.style.display = 'block';
+}
+
+function hideAnalyticsErrorDetail() {
+  const panel = document.getElementById('analytics-error-detail');
+  panel.style.display = 'none';
+  panel.textContent = '';
 }
 
 function buildParams() {
@@ -1312,6 +1339,15 @@ function formatBytes(b) {
   let i = 0;
   while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
   return b.toFixed(1) + ' ' + units[i];
+}
+
+function escapeHtml(value) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 // Admin key lives only in memory — cleared on page refresh (intentional)

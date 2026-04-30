@@ -4,7 +4,6 @@ import asyncio
 import time
 
 import cv2
-import numpy as np
 from fastapi import HTTPException, UploadFile, status
 from PIL import Image
 import rembg
@@ -15,6 +14,8 @@ from inits.server_init import thread_pool
 from inits.models_init import face_model, swapper, gfpgan_model
 from utils.preprocess_image import read_image, convert_to_cv2Image, generate_unique_path
 from utils.postprocess_image import save_img_with_url
+from utils.face_swap_utils import _detect_faces, _swap_face_on_target
+from utils.face_enhance_utils import _enhance_image
 
 
 # Load the background-removal session once (CPU model can be heavy to create repeatedly)
@@ -183,42 +184,6 @@ async def detect_face_and_crop(file: UploadFile, width: float, height: float, un
 # Source image should have only one face available
 # Target image can have 1 or more faces available for swapping
 """
-def _detect_faces(image, model):
-    faces = model.get(image)
-    return faces, len(faces) if faces else 0
-
-
-def _swap_face_on_target(swapper_model, target_image, target_face, source_face):
-    """
-    InsightFace in-swapper API: swapper.get(target_img, target_face, source_face, paste_back=True)
-    """
-    if swapper_model is None:
-        raise ValueError("Face swapper model is not loaded on the server.")
-    swapped = swapper_model.get(target_image, target_face, source_face, paste_back=True)
-    return swapped
-
-
-def _enhance_image(image, enhancer):
-    """
-    GFPGANer.enhance(...) returns a tuple; we take the restored image.
-    If enhancer isn't available, return image unchanged.
-    """
-    if enhancer is None:
-        return image
-    try:
-        out = enhancer.enhance(image, has_aligned=False, only_center_face=False, paste_back=True)
-        # common shapes: (cropped_faces, restored_faces, restored_img) or (restored_img, ...)
-        if isinstance(out, tuple):
-            for item in reversed(out):
-                if isinstance(item, np.ndarray):
-                    return item
-            return out[-1]
-        return out
-    except Exception:
-        # Enhancement is optional; don't fail swap if enhancer errors out
-        return image
-
-
 def face_swap_func(source, target, swapper_model, model, enhancer, src_filename, tgt_filename):
     """
     Synchronous worker that performs face swap.
