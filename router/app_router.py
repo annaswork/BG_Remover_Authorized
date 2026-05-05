@@ -20,7 +20,11 @@ async def read_root():
 
 @page_router.get("/", response_class=HTMLResponse)
 async def serve_ui(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        headers={"content-type": "text/html; charset=utf-8"},
+    )
 
 
 @router.post("/remove", response_model=dict)

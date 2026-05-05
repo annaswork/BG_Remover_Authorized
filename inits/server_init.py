@@ -36,6 +36,14 @@ app.mount(
 
 #Create and mount static folder
 os.makedirs(config_.STATIC_DIR, exist_ok=True)
+"""
+Create Required folders (
+    results: for storing results of bg_remover and face_swapper
+    plants: for storing plant images by scrapper
+)
+"""
+os.makedirs(config_.STATIC_DIR + "/results", exist_ok=True)
+os.makedirs(config_.STATIC_DIR + "/plants", exist_ok=True)
 app.mount(
     f"/{config_.STATIC_DIR}",
     StaticFiles(directory=config_.STATIC_DIR),
@@ -60,7 +68,7 @@ app.add_middleware(
 
 #============================================================================
 #configure Thread Pool Executor
-thread_pool = ThreadPoolExecutor(max_workers=10)
+thread_pool = ThreadPoolExecutor(max_workers=4)
 
 #============================================================================
 #configure Pillow-HEIF plugin

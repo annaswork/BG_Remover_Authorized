@@ -3,6 +3,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def _get_bool_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _get_int_env(name: str, default: int, minimum: int = 1) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+        return max(minimum, value)
+    except (TypeError, ValueError):
+        return default
+
 IP = "172.16.0.94"
 PORT = 8000
 
@@ -72,5 +87,5 @@ GFPGAN_V1_4_PATH = os.getenv(
 # Models to use (Face Swap)
 INSWAPPER_ENABLE = True
 # GFPGAN1_3_ENABLE = True  # optional
-GFPGAN1_3_ENABLE = False
-GFPGAN1_4_ENABLE = True
+GFPGAN1_3_ENABLE = _get_bool_env("GFPGAN1_3_ENABLE", False)
+GFPGAN1_4_ENABLE = _get_bool_env("GFPGAN1_4_ENABLE", True)

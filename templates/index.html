@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>BG Remover Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter@5.2.5/wght.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -20,8 +21,14 @@
     --muted: #64748b;
     --radius: 12px;
   }
+  html { color-scheme: dark; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+  body {
+    font-family: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    background: var(--bg); color: var(--text); display: flex; min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
   /* ── Sidebar ── */
   #sidebar {
@@ -32,7 +39,11 @@
   .sidebar-logo {
     padding: 24px 20px 16px; border-bottom: 1px solid var(--border);
   }
-  .sidebar-logo h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent2); }
+  .sidebar-logo h1 {
+    font-size: 1.1rem; font-weight: 700; color: var(--accent2);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sidebar-logo-mark { width: 1.25rem; height: 1.25rem; flex-shrink: 0; color: var(--accent2); }
   .sidebar-logo p { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
   .nav-section { padding: 16px 12px 4px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
   .nav-item {
@@ -85,6 +96,7 @@
     font-size: 0.88rem; font-weight: 600; transition: all .15s; display: inline-flex;
     align-items: center; gap: 6px;
   }
+  .btn svg { width: 0.95em; height: 0.95em; flex-shrink: 0; }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: #5a52e0; }
   .btn-danger { background: var(--danger); color: #fff; }
@@ -140,7 +152,7 @@
   .drop-zone svg { width: 40px; height: 40px; color: var(--muted); margin-bottom: 10px; }
   .drop-zone p { color: var(--muted); font-size: 0.88rem; }
   .drop-zone strong { color: var(--accent2); }
-  #file-input { display: none; }
+  #file-input, #face-file-input, #swap-source-file, #swap-target-file { display: none; }
   .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
   .preview-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .preview-box img { width: 100%; display: block; max-height: 320px; object-fit: contain; background: repeating-conic-gradient(#2a2a3a 0% 25%, #1a1a2a 0% 50%) 0 0 / 20px 20px; }
@@ -184,8 +196,10 @@
   .copy-btn {
     background: none; border: none; cursor: pointer; color: var(--muted);
     padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; transition: color .15s;
+    display: inline-flex; align-items: center; gap: 4px;
   }
   .copy-btn:hover { color: var(--accent2); }
+  .copy-btn svg { width: 0.95em; height: 0.95em; flex-shrink: 0; }
 
   /* ── Responsive ── */
   @media (max-width: 768px) {
@@ -201,23 +215,26 @@
 <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
 <nav id="sidebar">
   <div class="sidebar-logo">
-    <h1>✦ BG Remover</h1>
+    <h1>
+      <svg class="sidebar-logo-mark" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M5.64 5.64l2.83 2.83m7.07 7.07l2.83 2.83M3 12h4m14 0h4M5.64 18.36l2.83-2.83m7.07-7.07l2.83-2.83"/></svg>
+      <span>BG Remover</span>
+    </h1>
     <p>API Dashboard</p>
     <div id="admin-badge">Admin</div>
   </div>
 
   <div class="nav-section">Tools</div>
-  <div class="nav-item active" onclick="navigate('bg-remover')">
+  <div class="nav-item active" data-nav="bg-remover" onclick="navigate('bg-remover')">
     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16l4-4 4 4 4-8 4 8"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
     <span>BG Remover</span>
   </div>
-  <div class="nav-item" onclick="navigate('face')">
+  <div class="nav-item" data-nav="face" onclick="navigate('face')">
     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <circle cx="12" cy="8" r="3"/><path d="M5 20c1.5-3 3.5-4.5 7-4.5s5.5 1.5 7 4.5"/><rect x="3" y="3" width="18" height="18" rx="4"/>
     </svg>
-    <span>Face Detect & Crop</span>
+    <span>Photo ID Maker</span>
   </div>
-  <div class="nav-item" onclick="navigate('face-swap')">
+  <div class="nav-item" data-nav="face-swap" onclick="navigate('face-swap')">
     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <path d="M7 7h10M7 17h10"/><path d="M10 7l-3 3 3 3"/><path d="M14 17l3-3-3-3"/><rect x="3" y="3" width="18" height="18" rx="4"/>
     </svg>
@@ -225,11 +242,11 @@
   </div>
 
   <div class="nav-section">Admin</div>
-  <div class="nav-item" onclick="navigate('authorization')">
+  <div class="nav-item" data-nav="authorization" onclick="navigate('authorization')">
     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
     <span>Authorization</span>
   </div>
-  <div class="nav-item" onclick="navigate('analytics')">
+  <div class="nav-item" data-nav="analytics" onclick="navigate('analytics')">
     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/></svg>
     <span>Analytics</span>
   </div>
@@ -237,7 +254,8 @@
   <div class="sidebar-footer">
     <div id="admin-status-text">Not authenticated</div>
     <button class="btn btn-ghost" style="margin-top:8px;width:100%;font-size:0.75rem;" onclick="navigate('admin-login')">
-      🔑 Admin Login
+      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/></svg>
+      Admin Login
     </button>
   </div>
 </nav>
@@ -294,11 +312,11 @@
     </div>
   </div>
 
-  <!-- ── FACE DETECT & CROP PAGE ── -->
+  <!-- ── PHOTO ID MAKER PAGE ── -->
   <div id="page-face" class="page">
     <div class="page-header">
-      <h2>Face Detect & Crop</h2>
-      <p>Detect a single face, crop around it to specific dimensions, and remove the background.</p>
+      <h2>Photo ID Maker</h2>
+      <p>Detect one face, crop to your exact width and height, and remove the background for ID-style photos.</p>
     </div>
 
     <div class="card">
@@ -351,15 +369,15 @@
           <div class="preview-box">
             <img id="face-preview-result" src="" alt="Result" style="display:none;"/>
             <div id="face-preview-placeholder" style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.85rem;">
-              Cropped face result will appear here
+              Photo ID preview will appear here
             </div>
-            <div class="preview-label">Face Cropped</div>
+            <div class="preview-label">Photo ID</div>
           </div>
         </div>
         <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
           <button class="btn btn-primary" id="face-remove-btn" onclick="detectFaceCrop()">
             <div class="spinner" id="face-remove-spinner"></div>
-            Detect Face & Crop
+            Make Photo ID
           </button>
           <button class="btn btn-ghost" onclick="resetFace()">Clear</button>
           <a id="face-download-btn" class="btn btn-success" style="display:none;" download>Download</a>
@@ -391,10 +409,18 @@
       <div class="form-row-inline">
         <div class="form-row">
           <label>Source Image (1 face)</label>
+          <div class="drop-zone" id="swap-source-drop-zone" onclick="document.getElementById('swap-source-file').click()">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+            <p><strong>Click to upload</strong> or drag & drop</p>
+          </div>
           <input type="file" id="swap-source-file" accept="image/*"/>
         </div>
         <div class="form-row">
           <label>Target Image (1+ faces)</label>
+          <div class="drop-zone" id="swap-target-drop-zone" onclick="document.getElementById('swap-target-file').click()">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+            <p><strong>Click to upload</strong> or drag & drop</p>
+          </div>
           <input type="file" id="swap-target-file" accept="image/*"/>
         </div>
       </div>
@@ -486,7 +512,10 @@
           <div style="font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Generated API Key — copy and store it now</div>
           <div style="display:flex;align-items:center;gap:8px;">
             <code id="gen-key-value" style="font-size:0.85rem;color:var(--accent2);word-break:break-all;flex:1;"></code>
-            <button class="copy-btn" onclick="copyText('gen-key-value')">📋 Copy</button>
+            <button class="copy-btn" onclick="copyText('gen-key-value')">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy
+            </button>
           </div>
         </div>
       </div>
@@ -516,7 +545,10 @@
     <div class="card">
       <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
         All API Keys
-        <button class="btn btn-ghost" style="font-size:0.78rem;padding:6px 14px;" onclick="loadKeys()">↻ Refresh</button>
+        <button class="btn btn-ghost" style="font-size:0.78rem;padding:6px 14px;" onclick="loadKeys()">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+          Refresh
+        </button>
       </div>
       <div class="table-wrap">
         <table id="keys-table">
@@ -561,7 +593,10 @@
         <div class="card">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             Filters
-            <button class="btn btn-ghost" style="font-size:0.78rem;padding:6px 14px;" onclick="resetFilters()">✕ Reset</button>
+            <button class="btn btn-ghost" style="font-size:0.78rem;padding:6px 14px;" onclick="resetFilters()">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              Reset
+            </button>
           </div>
           <div class="filters">
             <div class="form-row">
@@ -624,9 +659,15 @@
             </table>
           </div>
           <div style="display:flex;gap:10px;margin-top:14px;align-items:center;">
-            <button class="btn btn-ghost" id="prev-btn" onclick="changePage(-1)" disabled>← Prev</button>
+            <button class="btn btn-ghost" id="prev-btn" onclick="changePage(-1)" disabled>
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+              Prev
+            </button>
             <span id="page-info" style="font-size:0.82rem;color:var(--muted);">Page 1</span>
-            <button class="btn btn-ghost" id="next-btn" onclick="changePage(1)">Next →</button>
+            <button class="btn btn-ghost" id="next-btn" onclick="changePage(1)">
+              Next
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
           </div>
           <div id="analytics-error-detail" class="alert alert-info" style="margin-top:12px;display:none;"></div>
           <div class="alert" id="analytics-alert"></div>
@@ -695,9 +736,8 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const el = document.getElementById('page-' + page);
   if (el) el.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => {
-    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes(page))
-      n.classList.add('active');
+  document.querySelectorAll('.nav-item[data-nav]').forEach(n => {
+    if (n.dataset.nav === page) n.classList.add('active');
   });
   if (page === 'authorization') loadKeys();
   if (page === 'analytics') { loadFiltersMeta(); loadSummary(); loadAnalytics(); loadCharts(); }
@@ -810,7 +850,7 @@ function resetBg() {
 }
 
 // ═══════════════════════════════════════════════════════
-//  FACE DETECT & CROP
+//  PHOTO ID MAKER
 // ═══════════════════════════════════════════════════════
 const faceDropZone = document.getElementById('face-drop-zone');
 const faceFileInput = document.getElementById('face-file-input');
@@ -892,9 +932,9 @@ async function detectFaceCrop() {
       dl.href = data.image_url;
       dl.download = data.filename;
       dl.style.display = 'inline-flex';
-      showAlert('face-alert', 'success', data.message || 'Face detected and cropped successfully.');
+      showAlert('face-alert', 'success', data.message || 'Photo ID created successfully.');
     } else {
-      showAlert('face-alert', 'error', data.detail || 'Face detect & crop failed.');
+      showAlert('face-alert', 'error', data.detail || 'Photo ID creation failed.');
     }
   } catch (e) {
     showAlert('face-alert', 'error', 'Connection error: ' + e.message);
@@ -915,6 +955,8 @@ function resetFace() {
 // ═══════════════════════════════════════════════════════
 //  FACE SWAP
 // ═══════════════════════════════════════════════════════
+const swapSourceDropZone = document.getElementById('swap-source-drop-zone');
+const swapTargetDropZone = document.getElementById('swap-target-drop-zone');
 const swapSourceInput = document.getElementById('swap-source-file');
 const swapTargetInput = document.getElementById('swap-target-file');
 let swapSourceFile = null;
@@ -943,11 +985,39 @@ swapSourceInput.addEventListener('change', () => {
   _updateSwapPreviewVisibility();
 });
 
+swapSourceDropZone.addEventListener('dragover', e => { e.preventDefault(); swapSourceDropZone.classList.add('drag-over'); });
+swapSourceDropZone.addEventListener('dragleave', () => swapSourceDropZone.classList.remove('drag-over'));
+swapSourceDropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  swapSourceDropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) {
+    swapSourceFile = f;
+    _previewFileToImg(swapSourceFile, 'swap-preview-source');
+    hideAlert('swap-alert');
+    _updateSwapPreviewVisibility();
+  }
+});
+
 swapTargetInput.addEventListener('change', () => {
   swapTargetFile = swapTargetInput.files && swapTargetInput.files[0] ? swapTargetInput.files[0] : null;
   if (swapTargetFile) _previewFileToImg(swapTargetFile, 'swap-preview-target');
   hideAlert('swap-alert');
   _updateSwapPreviewVisibility();
+});
+
+swapTargetDropZone.addEventListener('dragover', e => { e.preventDefault(); swapTargetDropZone.classList.add('drag-over'); });
+swapTargetDropZone.addEventListener('dragleave', () => swapTargetDropZone.classList.remove('drag-over'));
+swapTargetDropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  swapTargetDropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) {
+    swapTargetFile = f;
+    _previewFileToImg(swapTargetFile, 'swap-preview-target');
+    hideAlert('swap-alert');
+    _updateSwapPreviewVisibility();
+  }
 });
 
 async function swapFaces() {
@@ -1148,6 +1218,7 @@ async function loadAnalytics() {
     if (!data.data.length) {
       currentAnalyticsRecords = [];
       tbody.innerHTML = '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:24px;">No records found</td></tr>';
+      loadSummary();
       return;
     }
     tbody.innerHTML = data.data.map((r, idx) => `
@@ -1166,7 +1237,9 @@ async function loadAnalytics() {
     ).join('');
     loadSummary();
   } catch(e) { showAlert('analytics-alert', 'error', e.message); }
-  setSpinner('analytics-spinner', false);
+  finally {
+    setSpinner('analytics-spinner', false);
+  }
 }
 
 function showAnalyticsRecord(idx) {
