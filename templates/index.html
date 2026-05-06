@@ -688,6 +688,69 @@
           </div>
           <div class="alert" id="cleanup-alert"></div>
         </div>
+
+        <!-- Delete by Filter -->
+        <div class="card">
+          <div class="card-title">Delete Records by Filter</div>
+          <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">
+            Delete recent records matching specific criteria (e.g., bot traffic, test requests, specific status codes).
+          </p>
+          <div class="filters">
+            <div class="form-row">
+              <label>App Name</label>
+              <input type="text" id="del-app" placeholder="Optional" list="list-apps"/>
+            </div>
+            <div class="form-row">
+              <label>Method</label>
+              <select id="del-method">
+                <option value="">All</option>
+                <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option><option>PRI</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Status Code</label>
+              <input type="text" id="del-status" placeholder="e.g., 404" list="list-status"/>
+            </div>
+            <div class="form-row">
+              <label>Path Pattern</label>
+              <input type="text" id="del-path" placeholder="e.g., /metrics"/>
+            </div>
+            <div class="form-row">
+              <label>Start Date</label>
+              <input type="date" id="del-start"/>
+            </div>
+            <div class="form-row">
+              <label>End Date</label>
+              <input type="date" id="del-end"/>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <button class="btn btn-danger" onclick="deleteByFilter()">
+              <div class="spinner" id="delete-filter-spinner"></div>
+              Delete Matching Records
+            </button>
+          </div>
+          <div class="alert" id="delete-filter-alert"></div>
+        </div>
+
+        <!-- Delete All -->
+        <div class="card">
+          <div class="card-title" style="color:var(--danger);">⚠️ Delete All Records</div>
+          <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">
+            <strong>Warning:</strong> This will permanently delete ALL analytics records. This action cannot be undone.
+          </p>
+          <div style="display:flex;gap:12px;align-items:flex-end;">
+            <div class="form-row" style="margin-bottom:0;">
+              <label>Type "DELETE_ALL" to confirm</label>
+              <input type="text" id="delete-all-confirm" placeholder="DELETE_ALL" style="width:200px;"/>
+            </div>
+            <button class="btn btn-danger" onclick="deleteAllAnalytics()">
+              <div class="spinner" id="delete-all-spinner"></div>
+              Delete All Records
+            </button>
+          </div>
+          <div class="alert" id="delete-all-alert"></div>
+        </div>
       </div>
 
       <!-- RIGHT COLUMN: Charts stacked vertically -->
@@ -1286,10 +1349,96 @@ async function cleanupAnalytics() {
   try {
     const res = await fetch(`/api/analytics/cleanup?days=${days}`, { method: 'DELETE' });
     const data = await res.json();
-    if (res.ok) showAlert('cleanup-alert', 'success', data.message);
+    if (res.ok) {
+      showAlert('cleanup-alert', 'success', data.message);
+      loadAnalytics();
+      loadSummary();
+    }
     else showAlert('cleanup-alert', 'error', data.detail || 'Failed.');
   } catch(e) { showAlert('cleanup-alert', 'error', e.message); }
   setSpinner('cleanup-spinner', false);
+}
+
+async function deleteByFilter() {
+  const app = document.getElementById('del-app').value.trim();
+  const method = document.getElementById('del-method').value;
+  const status = document.getElementById('del-status').value.trim();
+  const path = document.getElementById('del-path').value.trim();
+  const start = document.getElementById('del-start').value.trim();
+  const end = document.getElementById('del-end').value.trim();
+
+  // Check if at least one filter is provided
+  if (!app && !method && !status && !path && !start && !end) {
+    showAlert('delete-filter-alert', 'error', 'Please provide at least one filter parameter.');
+    return;
+  }
+
+  // Build confirmation message
+  let filters = [];
+  if (app) filters.push(`App: ${app}`);
+  if (method) filters.push(`Method: ${method}`);
+  if (status) filters.push(`Status: ${status}`);
+  if (path) filters.push(`Path: ${path}`);
+  if (start) filters.push(`From: ${start}`);
+  if (end) filters.push(`To: ${end}`);
+  
+  const confirmMsg = `Delete all records matching:\n${filters.join('\n')}\n\nThis action cannot be undone. Continue?`;
+  if (!confirm(confirmMsg)) return;
+
+  setSpinner('delete-filter-spinner', true);
+  try {
+    const params = new URLSearchParams();
+    if (app) params.set('app_name', app);
+    if (method) params.set('method', method);
+    if (status) params.set('status_code', status);
+    if (path) params.set('path', path);
+    if (start) params.set('start_date', start);
+    if (end) params.set('end_date', end);
+
+    const res = await fetch(`/api/analytics/delete-by-filter?${params}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showAlert('delete-filter-alert', 'success', data.message);
+      // Clear filter inputs
+      document.getElementById('del-app').value = '';
+      document.getElementById('del-method').value = '';
+      document.getElementById('del-status').value = '';
+      document.getElementById('del-path').value = '';
+      document.getElementById('del-start').value = '';
+      document.getElementById('del-end').value = '';
+      // Reload analytics
+      loadAnalytics();
+      loadSummary();
+    }
+    else showAlert('delete-filter-alert', 'error', data.detail || 'Failed.');
+  } catch(e) { showAlert('delete-filter-alert', 'error', e.message); }
+  setSpinner('delete-filter-spinner', false);
+}
+
+async function deleteAllAnalytics() {
+  const confirm_text = document.getElementById('delete-all-confirm').value.trim();
+  if (confirm_text !== 'DELETE_ALL') {
+    showAlert('delete-all-alert', 'error', 'Please type "DELETE_ALL" to confirm.');
+    return;
+  }
+
+  if (!confirm('⚠️ WARNING: This will permanently delete ALL analytics records!\n\nThis action CANNOT be undone.\n\nAre you absolutely sure?')) {
+    return;
+  }
+
+  setSpinner('delete-all-spinner', true);
+  try {
+    const res = await fetch(`/api/analytics/delete-all?confirm=DELETE_ALL`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showAlert('delete-all-alert', 'success', data.message);
+      document.getElementById('delete-all-confirm').value = '';
+      loadAnalytics();
+      loadSummary();
+    }
+    else showAlert('delete-all-alert', 'error', data.detail || 'Failed.');
+  } catch(e) { showAlert('delete-all-alert', 'error', e.message); }
+  setSpinner('delete-all-spinner', false);
 }
 
 function resetFilters() {

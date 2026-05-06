@@ -10,7 +10,7 @@ async def read_image(file):
 
     image = Image.open(BytesIO(content))
     image = ImageOps.exif_transpose(image)
-    imgae = image.convert("RGB")
+    image = image.convert("RGB")
 
     return image
 

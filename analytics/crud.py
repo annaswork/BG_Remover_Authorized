@@ -249,6 +249,50 @@ async def delete_old_analytics(days: int = 90) -> int:
     return result.deleted_count
 
 
+async def delete_analytics_by_filter(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    method: Optional[str] = None,
+    path: Optional[str] = None,
+    status_code: Optional[int] = None,
+    app_name: Optional[str] = None,
+) -> int:
+    """Delete analytics records matching the given filters"""
+    db = get_analytics_db()
+    collection = db[ANALYTICS_COLLECTION_NAME]
+
+    query = {}
+    if start_date or end_date:
+        query["timestamp"] = {}
+        if start_date:
+            query["timestamp"]["$gte"] = start_date
+        if end_date:
+            query["timestamp"]["$lte"] = end_date
+    if method:
+        query["method"] = method
+    if path:
+        query["path"] = {"$regex": path, "$options": "i"}
+    if status_code:
+        query["status_code"] = status_code
+    if app_name:
+        query["app_name"] = {"$regex": app_name, "$options": "i"}
+
+    # Safety check: don't allow deleting everything without any filter
+    if not query:
+        raise ValueError("At least one filter parameter must be provided")
+
+    result = await collection.delete_many(query)
+    return result.deleted_count
+
+
+async def delete_all_analytics() -> int:
+    """Delete ALL analytics records (use with caution!)"""
+    db = get_analytics_db()
+    collection = db[ANALYTICS_COLLECTION_NAME]
+    result = await collection.delete_many({})
+    return result.deleted_count
+
+
 async def get_distinct_app_names() -> List[str]:
     db = get_analytics_db()
     collection = db[ANALYTICS_COLLECTION_NAME]

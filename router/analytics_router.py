@@ -299,3 +299,88 @@ async def cleanup_old_analytics(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error cleaning up analytics: {str(e)}")
 
+
+@router.delete("/delete-by-filter", response_model=dict)
+async def delete_analytics_by_filter(
+    start_date: Optional[str] = Query(None, description="Start date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"),
+    end_date: Optional[str] = Query(None, description="End date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"),
+    method: Optional[str] = Query(None, description="Filter by HTTP method"),
+    path: Optional[str] = Query(None, description="Filter by path (partial match)"),
+    status_code: Optional[int] = Query(None, description="Filter by status code"),
+    app_name: Optional[str] = Query(None, description="Filter by app name (partial match)"),
+):
+    """
+    Delete analytics records matching the given filters.
+    At least one filter parameter must be provided.
+    This allows deleting recent records (e.g., bot traffic, test requests).
+    """
+    try:
+        # Parse dates
+        start_dt = None
+        end_dt = None
+        if start_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            except ValueError:
+                try:
+                    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD or ISO format")
+        
+        if end_date:
+            try:
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            except ValueError:
+                try:
+                    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                    # Set to end of day
+                    end_dt = end_dt.replace(hour=23, minute=59, second=59)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD or ISO format")
+        
+        deleted_count = await analytics_db.delete_analytics_by_filter(
+            start_date=start_dt,
+            end_date=end_dt,
+            method=method,
+            path=path,
+            status_code=status_code,
+            app_name=app_name,
+        )
+        
+        return {
+            "message": f"Deleted {deleted_count} analytics records matching the filters",
+            "deleted_count": deleted_count
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting analytics: {str(e)}")
+
+
+@router.delete("/delete-all", response_model=dict)
+async def delete_all_analytics(
+    confirm: str = Query(..., description="Type 'DELETE_ALL' to confirm deletion of all analytics records")
+):
+    """
+    Delete ALL analytics records. Use with extreme caution!
+    Requires confirmation parameter to prevent accidental deletion.
+    """
+    try:
+        if confirm != "DELETE_ALL":
+            raise HTTPException(
+                status_code=400,
+                detail="Confirmation failed. Set confirm='DELETE_ALL' to proceed with deletion of all records."
+            )
+        
+        deleted_count = await analytics_db.delete_all_analytics()
+        return {
+            "message": f"Deleted all {deleted_count} analytics records",
+            "deleted_count": deleted_count
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting all analytics: {str(e)}")
+
