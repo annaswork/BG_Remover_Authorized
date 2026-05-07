@@ -1,0 +1,26 @@
+{
+  "sunflower||": {
+    "common_name": "Sunflower",
+    "description": "Sunflowers are tall, bright yellow flowers known for their large heads that follow the sun. They are popular in gardens and as cut flowers.",
+    "taxonomy": "Asteraceae, Helianthus",
+    "care_frequency": "3/5",
+    "temperature_celsius": "20-30°C",
+    "fertilizer": "Every few weeks",
+    "sunlight": "Full sun required",
+    "watering": "Water twice weekly",
+    "humidity": "Low humidity preferred",
+    "location": "Open fields",
+    "pruning": "Remove dead heads",
+    "insects": "Beetles",
+    "soil_type": "Well-drained soil",
+    "growth_rate": "Fast",
+    "hardiness_zones": "2-11",
+    "toxicity": "Non-toxic",
+    "allergies_hazards": "Pollen may cause allergies.",
+    "companions": "Corn, Beans",
+    "problems": [
+      "Birds eating seeds",
+      "Powdery mildew"
+    ]
+  }
+}

@@ -7,3 +7,6 @@ venv_bg_remover/
 models/GFPGANv1.4.pth
 models/inswapper_128.onnx
 gfpgan/
+models/embeddings_h14
+models/plant_faiss_index.index
+models/bioclip_vith14

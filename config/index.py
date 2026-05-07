@@ -84,8 +84,28 @@ GFPGAN_V1_4_PATH = os.getenv(
     os.path.join(ROOT_DIR, "models", "GFPGANv1.4.pth"),
 )
 
+# BioCLIP weights
+BIOCLIP_PATH = os.getenv(
+    "BIOCLIP_PATH",
+    os.path.join(ROOT_DIR, "models", "bioclip_vith14"),
+)
+
 # Models to use (Face Swap)
 INSWAPPER_ENABLE = True
 # GFPGAN1_3_ENABLE = True  # optional
 GFPGAN1_3_ENABLE = _get_bool_env("GFPGAN1_3_ENABLE", False)
 GFPGAN1_4_ENABLE = _get_bool_env("GFPGAN1_4_ENABLE", True)
+
+# Models to use (Face Swap)
+INSWAPPER_ENABLE = True
+# GFPGAN1_3_ENABLE = True  # optional
+GFPGAN1_3_ENABLE = False
+GFPGAN1_4_ENABLE = True
+BIOCLIP_ENABLE = True
+FAISS_ENABLE = True
+
+# FAISS Index Path
+FAISS_INDEX_PATH = os.path.join(ROOT_DIR, "models", "plant_faiss_index.index")
+
+# Plant Metadata Path
+PLANT_METADATA_PATH = os.path.join(ROOT_DIR, "models", "embeddings_h14", "metadata.json")
