@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Depends, Form, HTTPException
 from controller.auth_controller import require_api_key
-from controller.face_app_controller import detect_face_and_crop, face_swap
+from controller.face_app_controller import detect_face_and_crop, face_swap, enhance_image
 
 
 router = APIRouter(prefix="/api/face_detect", tags=["face"])
@@ -34,14 +34,33 @@ async def face_crop(
 async def swap_faces(
     source: UploadFile = File(..., description="Source image (must contain exactly one face)"),
     target: UploadFile = File(..., description="Target image (can contain one or more faces)"),
+    enhance: bool = Form(False, description="Apply GFPGAN enhancement to the swapped result"),
     _auth: dict = Depends(require_api_key),
 ):
     """
     Swap the face from the source image onto every detected face in the target image.
+    Optionally enhance the result using GFPGAN.
     Requires a valid API key in the X-API-Key header.
     """
     try:
-        return await face_swap(source_file=source, target_file=target)
+        return await face_swap(source_file=source, target_file=target, enhance=enhance)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/enhance", response_model=dict)
+async def enhance_face(
+    file: UploadFile = File(..., description="Image file to enhance"),
+    _auth: dict = Depends(require_api_key),
+):
+    """
+    Enhance an image using GFPGAN face enhancement model.
+    Requires a valid API key in the X-API-Key header.
+    """
+    try:
+        return await enhance_image(file=file)
     except HTTPException:
         raise
     except Exception as e:

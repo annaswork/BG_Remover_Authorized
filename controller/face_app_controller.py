@@ -184,9 +184,11 @@ async def detect_face_and_crop(file: UploadFile, width: float, height: float, un
 # Source image should have only one face available
 # Target image can have 1 or more faces available for swapping
 """
-def face_swap_func(source, target, swapper_model, model, enhancer, src_filename, tgt_filename):
+def face_swap_func(source, target, swapper_model, model, enhancer, src_filename, tgt_filename, enhance=False):
     """
     Synchronous worker that performs face swap.
+    Args:
+        enhance: If True, applies GFPGAN enhancement to the swapped result.
     """
     start_time = time.time()
 
@@ -218,12 +220,15 @@ def face_swap_func(source, target, swapper_model, model, enhancer, src_filename,
     if swapped_target is None or getattr(swapped_target, "size", 0) == 0:
         raise ValueError("Failed to swap faces.")
 
-    enhanced_output_image = _enhance_image(swapped_target, enhancer)
-    if enhanced_output_image is None or getattr(enhanced_output_image, "size", 0) == 0:
-        raise ValueError("Failed to produce output image.")
+    # Apply enhancement if requested
+    output_image = swapped_target
+    if enhance:
+        output_image = _enhance_image(swapped_target, enhancer)
+        if output_image is None or getattr(output_image, "size", 0) == 0:
+            raise ValueError("Failed to enhance image.")
 
     output_filename = generate_unique_path(tgt_filename or "target.png")
-    image_url = save_img_with_url(enhanced_output_image, output_filename)
+    image_url = save_img_with_url(output_image, output_filename)
     end_time = time.time()
 
     return {
@@ -231,12 +236,74 @@ def face_swap_func(source, target, swapper_model, model, enhancer, src_filename,
         "image_url": image_url,
         "filename": output_filename,
         "time_taken": f"{end_time - start_time:.2f}",
+        "enhanced": enhance,
     }
 
 
-async def face_swap(source_file: UploadFile, target_file: UploadFile) -> dict:
+#===============================================================================================
+"""
+# This Function enhances a single image using GFPGAN
+"""
+def enhance_image_func(image, enhancer, filename):
+    """
+    Synchronous worker that enhances an image using GFPGAN.
+    """
+    start_time = time.time()
+
+    if image is None:
+        raise ValueError("Image is missing.")
+    if enhancer is None:
+        raise ValueError("Enhancement model is not loaded on the server.")
+
+    enhanced_image = _enhance_image(image, enhancer)
+    if enhanced_image is None or getattr(enhanced_image, "size", 0) == 0:
+        raise ValueError("Failed to enhance image.")
+
+    output_filename = generate_unique_path(filename or "enhanced.png")
+    image_url = save_img_with_url(enhanced_image, output_filename)
+    end_time = time.time()
+
+    return {
+        "message": "Image enhanced successfully",
+        "image_url": image_url,
+        "filename": output_filename,
+        "time_taken": f"{end_time - start_time:.2f}",
+    }
+
+
+async def enhance_image(file: UploadFile) -> dict:
+    """
+    Async API wrapper for image enhancement.
+    """
+    if gfpgan_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Enhancement model is not initialized on the server.",
+        )
+
+    pil_image = await read_image(file)
+    cv2_image = convert_to_cv2Image(pil_image.convert("RGB"))
+
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(
+            thread_pool,
+            enhance_image_func,
+            cv2_image,
+            gfpgan_model,
+            file.filename or "enhanced.png",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+async def face_swap(source_file: UploadFile, target_file: UploadFile, enhance: bool = False) -> dict:
     """
     Async API wrapper. Reads uploads, converts to cv2, runs face swap in thread pool.
+    Args:
+        enhance: If True, applies GFPGAN enhancement to the swapped result.
     """
     if face_model is None:
         raise HTTPException(
@@ -266,6 +333,7 @@ async def face_swap(source_file: UploadFile, target_file: UploadFile) -> dict:
             gfpgan_model,
             source_file.filename or "source.png",
             target_file.filename or "target.png",
+            enhance,
         )
     except HTTPException:
         raise

@@ -49,7 +49,6 @@ EXCLUDE_PATHS = [
     "/images",
     "/media",
     "/conf",
-    "/api",
     "/erc",
     "/app",
     "/site",

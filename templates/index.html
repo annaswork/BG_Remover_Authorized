@@ -447,13 +447,25 @@
           </div>
         </div>
 
-        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
+        <!-- Enhancement Toggle -->
+        <div class="form-row" style="margin-top:16px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="swap-enhance-toggle" style="width:auto;cursor:pointer;"/>
+            <span>Apply GFPGAN Enhancement (improves face quality but takes longer)</span>
+          </label>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <button class="btn btn-primary" id="swap-btn" onclick="swapFaces()">
             <div class="spinner" id="swap-spinner"></div>
             Swap Faces
           </button>
           <button class="btn btn-ghost" onclick="resetSwap()">Clear</button>
           <a id="swap-download-btn" class="btn btn-success" style="display:none;" download>Download</a>
+          <button class="btn btn-ghost" id="swap-enhance-btn" style="display:none;" onclick="enhanceSwappedImage()">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Enhance Image
+          </button>
         </div>
       </div>
 
@@ -1088,12 +1100,15 @@ async function swapFaces() {
   if (!key) { showAlert('swap-alert', 'error', 'Please enter your API key.'); return; }
   if (!swapSourceFile || !swapTargetFile) { showAlert('swap-alert', 'error', 'Please select both source and target images.'); return; }
 
+  const enhance = document.getElementById('swap-enhance-toggle').checked;
+
   setSpinner('swap-spinner', true);
   document.getElementById('swap-btn').disabled = true;
 
   const form = new FormData();
   form.append('source', swapSourceFile);
   form.append('target', swapTargetFile);
+  form.append('enhance', enhance);
 
   try {
     const res = await fetch('/api/face_detect/swap', {
@@ -1111,6 +1126,16 @@ async function swapFaces() {
       dl.href = data.image_url;
       dl.download = data.filename || 'swapped.webp';
       dl.style.display = 'inline-flex';
+      
+      // Show enhance button only if enhancement was not applied
+      const enhanceBtn = document.getElementById('swap-enhance-btn');
+      if (data.enhanced) {
+        enhanceBtn.style.display = 'none';
+      } else {
+        enhanceBtn.style.display = 'inline-flex';
+        enhanceBtn.dataset.imageUrl = data.image_url;
+      }
+      
       showAlert('swap-alert', 'success', data.message || 'Faces swapped successfully.');
     } else {
       showAlert('swap-alert', 'error', data.detail || 'Face swap failed.');
@@ -1123,12 +1148,61 @@ async function swapFaces() {
   document.getElementById('swap-btn').disabled = false;
 }
 
+async function enhanceSwappedImage() {
+  const key = document.getElementById('swap-api-key').value.trim();
+  if (!key) { showAlert('swap-alert', 'error', 'Please enter your API key.'); return; }
+  
+  const imageUrl = document.getElementById('swap-enhance-btn').dataset.imageUrl;
+  if (!imageUrl) { showAlert('swap-alert', 'error', 'No image to enhance.'); return; }
+
+  // Fetch the image as a blob
+  try {
+    showAlert('swap-alert', 'info', 'Fetching image for enhancement...');
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) throw new Error('Failed to fetch image');
+    const blob = await imgRes.blob();
+    
+    // Create a file from the blob
+    const file = new File([blob], 'swapped.webp', { type: blob.type });
+    
+    const form = new FormData();
+    form.append('file', file);
+
+    showAlert('swap-alert', 'info', 'Enhancing image...');
+    const res = await fetch('/api/face_detect/enhance', {
+      method: 'POST',
+      headers: { 'X-API-Key': key },
+      body: form
+    });
+    const data = await res.json();
+    
+    if (res.ok) {
+      const img = document.getElementById('swap-preview-result');
+      img.src = data.image_url;
+      const dl = document.getElementById('swap-download-btn');
+      dl.href = data.image_url;
+      dl.download = data.filename || 'enhanced.webp';
+      
+      // Hide enhance button after enhancement
+      document.getElementById('swap-enhance-btn').style.display = 'none';
+      
+      showAlert('swap-alert', 'success', data.message || 'Image enhanced successfully.');
+    } else {
+      showAlert('swap-alert', 'error', data.detail || 'Enhancement failed.');
+    }
+  } catch(e) {
+    showAlert('swap-alert', 'error', 'Enhancement error: ' + e.message);
+  }
+}
+
 function resetSwap() {
   swapSourceFile = null;
   swapTargetFile = null;
   swapSourceInput.value = '';
   swapTargetInput.value = '';
   document.getElementById('swap-preview-section').style.display = 'none';
+  document.getElementById('swap-enhance-toggle').checked = false;
+  document.getElementById('swap-enhance-btn').style.display = 'none';
   hideAlert('swap-alert');
   document.getElementById('swap-download-btn').style.display = 'none';
 }
