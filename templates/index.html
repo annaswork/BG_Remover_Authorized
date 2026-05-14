@@ -246,6 +246,12 @@
     </svg>
     <span>Plant Identification</span>
   </div>
+  <div class="nav-item" data-nav="urdu-shayari" onclick="navigate('urdu-shayari')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+    </svg>
+    <span>Urdu Shayari AI</span>
+  </div>
 
   <div class="nav-section">Admin</div>
   <div class="nav-item" data-nav="authorization" onclick="navigate('authorization')">
@@ -775,6 +781,150 @@
     </div>
   </div>
 
+  <!-- ── URDU SHAYARI AI PAGE ── -->
+  <div id="page-urdu-shayari" class="page">
+    <div class="page-header">
+      <h2>Urdu Shayari AI</h2>
+      <p>Chat with poet personas (full reply or streamed), stream poetry by topic or type, and browse chat history. Requires OpenAI and MongoDB (Urdu_Shayari DB).</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">API Key</div>
+      <div class="form-row">
+        <label>X-API-Key — required for all Urdu AI calls below</label>
+        <input type="password" id="urdu-api-key" placeholder="Paste your API key here…"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">AI conversation</div>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Use <strong>Send</strong> for a JSON response, or <strong>Stream reply</strong> to see text arrive incrementally (same API key and fields).</p>
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Username</label>
+          <input type="text" id="urdu-conv-username" placeholder="testuser"/>
+        </div>
+        <div class="form-row">
+          <label>Character</label>
+          <select id="urdu-conv-character">
+            <option>Urdu Scholar</option>
+            <option>Shayar</option>
+            <option>Dost</option>
+            <option>Competitor</option>
+            <option>Ustad</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Name (optional)</label>
+          <input type="text" id="urdu-conv-name" placeholder=""/>
+        </div>
+        <div class="form-row">
+          <label>Gender (optional)</label>
+          <input type="text" id="urdu-conv-gender" placeholder=""/>
+        </div>
+        <div class="form-row">
+          <label>Age (optional)</label>
+          <input type="text" id="urdu-conv-age" placeholder=""/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Prompt</label>
+        <input type="text" id="urdu-conv-prompt" placeholder="Your question…"/>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" id="urdu-conv-btn" onclick="urduAiConversation()">
+          <div class="spinner" id="urdu-conv-spinner"></div>
+          Send
+        </button>
+        <button class="btn btn-ghost" id="urdu-conv-stream-btn" onclick="urduAiConversationStream()">
+          <div class="spinner" id="urdu-conv-stream-spinner"></div>
+          Stream reply
+        </button>
+      </div>
+      <pre id="urdu-conv-out" style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:8px;font-size:0.85rem;white-space:pre-wrap;max-height:240px;overflow:auto;direction:rtl;text-align:right;display:none;"></pre>
+      <div class="alert" id="urdu-conv-alert"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Stream poetry by topic</div>
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Username</label>
+          <input type="text" id="urdu-stream-topic-user" placeholder="testuser"/>
+        </div>
+        <div class="form-row">
+          <label>Poetry topic</label>
+          <input type="text" id="urdu-stream-topic" placeholder="e.g. محبت"/>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="urdu-stream-topic-btn" onclick="urduStreamByTopic()">
+        <div class="spinner" id="urdu-stream-topic-spinner"></div>
+        Start stream
+      </button>
+      <pre id="urdu-stream-topic-out" style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:8px;font-size:0.88rem;white-space:pre-wrap;min-height:120px;max-height:320px;overflow:auto;direction:rtl;text-align:right;"></pre>
+      <div class="alert" id="urdu-stream-topic-alert"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Stream poetry by type</div>
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Username (optional)</label>
+          <input type="text" id="urdu-stream-type-user" placeholder="testuser"/>
+        </div>
+        <div class="form-row">
+          <label>Poetry type</label>
+          <input type="text" id="urdu-stream-type" placeholder="e.g. غزل"/>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="urdu-stream-type-btn" onclick="urduStreamByType()">
+        <div class="spinner" id="urdu-stream-type-spinner"></div>
+        Start stream
+      </button>
+      <pre id="urdu-stream-type-out" style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:8px;font-size:0.88rem;white-space:pre-wrap;min-height:120px;max-height:320px;overflow:auto;direction:rtl;text-align:right;"></pre>
+      <div class="alert" id="urdu-stream-type-alert"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Chat history</div>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">Load stored messages: use character mode (conversations) or topic/type filters matching how data was saved.</p>
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Username</label>
+          <input type="text" id="urdu-hist-username" placeholder="testuser"/>
+        </div>
+        <div class="form-row">
+          <label>Character (optional)</label>
+          <input type="text" id="urdu-hist-character" placeholder="Shayar"/>
+        </div>
+      </div>
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Poetry topic (optional)</label>
+          <input type="text" id="urdu-hist-topic" placeholder=""/>
+        </div>
+        <div class="form-row">
+          <label>Poetry type (optional)</label>
+          <input type="text" id="urdu-hist-type" placeholder=""/>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="urduLoadChatHistory()">
+          <div class="spinner" id="urdu-hist-spinner"></div>
+          Load history
+        </button>
+        <button class="btn btn-danger" onclick="urduDeleteChatHistory()">
+          <div class="spinner" id="urdu-del-spinner"></div>
+          Delete history (character)
+        </button>
+      </div>
+      <pre id="urdu-hist-out" style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:8px;font-size:0.78rem;white-space:pre-wrap;max-height:280px;overflow:auto;display:none;"></pre>
+      <div class="alert" id="urdu-hist-alert"></div>
+    </div>
+  </div>
+
   <!-- ── ADMIN LOGIN PAGE ── -->
   <div id="page-admin-login" class="page">
     <div id="admin-gate">
@@ -950,9 +1100,16 @@
 
         <!-- Records Table -->
         <div class="card">
-          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-            Request Logs
-            <span id="analytics-total-badge" class="badge badge-blue"></span>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <span>Request Logs</span>
+            <span style="display:flex;align-items:center;gap:10px;">
+              <button type="button" class="btn btn-ghost" style="font-size:0.78rem;padding:6px 14px;" onclick="refreshAnalyticsList()" title="Reload filters metadata, summary, log table, and charts">
+                <div class="spinner" id="analytics-refresh-spinner"></div>
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                Refresh
+              </button>
+              <span id="analytics-total-badge" class="badge badge-blue"></span>
+            </span>
           </div>
           <div class="table-wrap">
             <table>
@@ -1752,6 +1909,265 @@ function resetPlantIdentify() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  URDU SHAYARI AI
+// ═══════════════════════════════════════════════════════
+let urduStreamTopicAbort = null;
+let urduStreamTypeAbort = null;
+let urduStreamConvAbort = null;
+
+function urduApiKey() {
+  const k = document.getElementById('urdu-api-key').value.trim();
+  if (!k) throw new Error('Enter your X-API-Key for Urdu Shayari.');
+  return k;
+}
+
+async function urduAiConversation() {
+  const username = document.getElementById('urdu-conv-username').value.trim();
+  const character = document.getElementById('urdu-conv-character').value;
+  const prompt = document.getElementById('urdu-conv-prompt').value.trim();
+  if (!username || !prompt) {
+    showAlert('urdu-conv-alert', 'error', 'Username and prompt are required.');
+    return;
+  }
+  const params = new URLSearchParams({ character, username });
+  const name = document.getElementById('urdu-conv-name').value.trim();
+  const gender = document.getElementById('urdu-conv-gender').value.trim();
+  const age = document.getElementById('urdu-conv-age').value.trim();
+  if (name) params.set('name', name);
+  if (gender) params.set('gender', gender);
+  if (age) params.set('age', age);
+
+  setSpinner('urdu-conv-spinner', true);
+  document.getElementById('urdu-conv-btn').disabled = true;
+  document.getElementById('urdu-conv-stream-btn').disabled = true;
+  hideAlert('urdu-conv-alert');
+  try {
+    const res = await fetch('/api/urdu-shayari/ai-conversation?' + params.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': urduApiKey() },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await res.json().catch(() => ({}));
+    const out = document.getElementById('urdu-conv-out');
+    out.style.display = 'block';
+    out.textContent = JSON.stringify(data, null, 2);
+    if (!res.ok) showAlert('urdu-conv-alert', 'error', data.detail || res.statusText);
+    else showAlert('urdu-conv-alert', 'success', 'Conversation completed.');
+  } catch (e) {
+    showAlert('urdu-conv-alert', 'error', e.message);
+  }
+  setSpinner('urdu-conv-spinner', false);
+  document.getElementById('urdu-conv-btn').disabled = false;
+  document.getElementById('urdu-conv-stream-btn').disabled = false;
+}
+
+async function urduAiConversationStream() {
+  const username = document.getElementById('urdu-conv-username').value.trim();
+  const character = document.getElementById('urdu-conv-character').value;
+  const prompt = document.getElementById('urdu-conv-prompt').value.trim();
+  if (!username || !prompt) {
+    showAlert('urdu-conv-alert', 'error', 'Username and prompt are required.');
+    return;
+  }
+  if (urduStreamConvAbort) urduStreamConvAbort.abort();
+  urduStreamConvAbort = new AbortController();
+
+  const params = new URLSearchParams({ character, username });
+  const name = document.getElementById('urdu-conv-name').value.trim();
+  const gender = document.getElementById('urdu-conv-gender').value.trim();
+  const age = document.getElementById('urdu-conv-age').value.trim();
+  if (name) params.set('name', name);
+  if (gender) params.set('gender', gender);
+  if (age) params.set('age', age);
+
+  const out = document.getElementById('urdu-conv-out');
+  out.style.display = 'block';
+  out.textContent = '';
+  setSpinner('urdu-conv-stream-spinner', true);
+  document.getElementById('urdu-conv-stream-btn').disabled = true;
+  document.getElementById('urdu-conv-btn').disabled = true;
+  hideAlert('urdu-conv-alert');
+  try {
+    const res = await fetch('/api/urdu-shayari/stream/ai-conversation?' + params.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': urduApiKey() },
+      body: JSON.stringify({ prompt }),
+      signal: urduStreamConvAbort.signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showAlert('urdu-conv-alert', 'error', err.detail || res.statusText);
+      return;
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let acc = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      acc += dec.decode(value, { stream: true });
+      out.textContent = acc;
+    }
+    showAlert('urdu-conv-alert', 'success', 'Stream finished.');
+  } catch (e) {
+    if (e.name !== 'AbortError') showAlert('urdu-conv-alert', 'error', e.message);
+  }
+  setSpinner('urdu-conv-stream-spinner', false);
+  document.getElementById('urdu-conv-stream-btn').disabled = false;
+  document.getElementById('urdu-conv-btn').disabled = false;
+}
+
+async function urduStreamByTopic() {
+  const username = document.getElementById('urdu-stream-topic-user').value.trim();
+  const poetry_topic = document.getElementById('urdu-stream-topic').value.trim();
+  if (!username || !poetry_topic) {
+    showAlert('urdu-stream-topic-alert', 'error', 'Username and poetry topic are required.');
+    return;
+  }
+  if (urduStreamTopicAbort) urduStreamTopicAbort.abort();
+  urduStreamTopicAbort = new AbortController();
+
+  const params = new URLSearchParams({ username, poetry_topic });
+  const out = document.getElementById('urdu-stream-topic-out');
+  out.textContent = '';
+  setSpinner('urdu-stream-topic-spinner', true);
+  document.getElementById('urdu-stream-topic-btn').disabled = true;
+  hideAlert('urdu-stream-topic-alert');
+  try {
+    const res = await fetch('/api/urdu-shayari/stream/poetry-by-topic?' + params.toString(), {
+      headers: { 'X-API-Key': urduApiKey() },
+      signal: urduStreamTopicAbort.signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showAlert('urdu-stream-topic-alert', 'error', err.detail || res.statusText);
+      return;
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let acc = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      acc += dec.decode(value, { stream: true });
+      out.textContent = acc;
+    }
+    showAlert('urdu-stream-topic-alert', 'success', 'Stream finished.');
+  } catch (e) {
+    if (e.name !== 'AbortError') showAlert('urdu-stream-topic-alert', 'error', e.message);
+  }
+  setSpinner('urdu-stream-topic-spinner', false);
+  document.getElementById('urdu-stream-topic-btn').disabled = false;
+}
+
+async function urduStreamByType() {
+  const poetry_type = document.getElementById('urdu-stream-type').value.trim();
+  if (!poetry_type) {
+    showAlert('urdu-stream-type-alert', 'error', 'Poetry type is required.');
+    return;
+  }
+  if (urduStreamTypeAbort) urduStreamTypeAbort.abort();
+  urduStreamTypeAbort = new AbortController();
+
+  const params = new URLSearchParams({ poetry_type });
+  const u = document.getElementById('urdu-stream-type-user').value.trim();
+  if (u) params.set('username', u);
+
+  const out = document.getElementById('urdu-stream-type-out');
+  out.textContent = '';
+  setSpinner('urdu-stream-type-spinner', true);
+  document.getElementById('urdu-stream-type-btn').disabled = true;
+  hideAlert('urdu-stream-type-alert');
+  try {
+    const res = await fetch('/api/urdu-shayari/stream/poetry-by-type?' + params.toString(), {
+      headers: { 'X-API-Key': urduApiKey() },
+      signal: urduStreamTypeAbort.signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showAlert('urdu-stream-type-alert', 'error', err.detail || res.statusText);
+      return;
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let acc = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      acc += dec.decode(value, { stream: true });
+      out.textContent = acc;
+    }
+    showAlert('urdu-stream-type-alert', 'success', 'Stream finished.');
+  } catch (e) {
+    if (e.name !== 'AbortError') showAlert('urdu-stream-type-alert', 'error', e.message);
+  }
+  setSpinner('urdu-stream-type-spinner', false);
+  document.getElementById('urdu-stream-type-btn').disabled = false;
+}
+
+async function urduLoadChatHistory() {
+  const username = document.getElementById('urdu-hist-username').value.trim();
+  if (!username) {
+    showAlert('urdu-hist-alert', 'error', 'Username is required.');
+    return;
+  }
+  const params = new URLSearchParams({ username });
+  const character = document.getElementById('urdu-hist-character').value.trim();
+  const poetry_topic = document.getElementById('urdu-hist-topic').value.trim();
+  const poetry_type = document.getElementById('urdu-hist-type').value.trim();
+  if (character) params.set('character', character);
+  if (poetry_topic) params.set('poetry_topic', poetry_topic);
+  if (poetry_type) params.set('poetry_type', poetry_type);
+
+  setSpinner('urdu-hist-spinner', true);
+  hideAlert('urdu-hist-alert');
+  try {
+    const res = await fetch('/api/urdu-shayari/chat-history?' + params.toString(), {
+      headers: { 'X-API-Key': urduApiKey() },
+    });
+    const data = await res.json().catch(() => ({}));
+    const pre = document.getElementById('urdu-hist-out');
+    pre.style.display = 'block';
+    pre.textContent = JSON.stringify(data, null, 2);
+    if (!res.ok) showAlert('urdu-hist-alert', 'error', data.detail || res.statusText);
+    else showAlert('urdu-hist-alert', 'success', 'History loaded.');
+  } catch (e) {
+    showAlert('urdu-hist-alert', 'error', e.message);
+  }
+  setSpinner('urdu-hist-spinner', false);
+}
+
+async function urduDeleteChatHistory() {
+  const username = document.getElementById('urdu-hist-username').value.trim();
+  const character = document.getElementById('urdu-hist-character').value.trim();
+  if (!username || !character) {
+    showAlert('urdu-hist-alert', 'error', 'Username and character are required to delete.');
+    return;
+  }
+  if (!confirm('Delete all chat history for this user and character?')) return;
+
+  const params = new URLSearchParams({ username, character });
+
+  setSpinner('urdu-del-spinner', true);
+  hideAlert('urdu-hist-alert');
+  try {
+    const res = await fetch('/api/urdu-shayari/chat-history?' + params.toString(), {
+      method: 'DELETE',
+      headers: { 'X-API-Key': urduApiKey() },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) showAlert('urdu-hist-alert', 'error', data.detail || res.statusText);
+    else {
+      showAlert('urdu-hist-alert', 'success', data.info || 'Deleted.');
+      urduLoadChatHistory();
+    }
+  } catch (e) {
+    showAlert('urdu-hist-alert', 'error', e.message);
+  }
+  setSpinner('urdu-del-spinner', false);
+}
+
+// ═══════════════════════════════════════════════════════
 //  AUTHORIZATION
 // ═══════════════════════════════════════════════════════
 async function generateKey() {
@@ -2147,6 +2563,20 @@ async function loadCharts() {
       }
     });
   } catch(e) {}
+}
+
+async function refreshAnalyticsList() {
+  setSpinner('analytics-refresh-spinner', true);
+  hideAlert('analytics-alert');
+  try {
+    await loadFiltersMeta();
+    await loadSummary();
+    await loadAnalytics();
+    await loadCharts();
+  } catch (e) {
+    showAlert('analytics-alert', 'error', e.message);
+  }
+  setSpinner('analytics-refresh-spinner', false);
 }
 
 // ═══════════════════════════════════════════════════════

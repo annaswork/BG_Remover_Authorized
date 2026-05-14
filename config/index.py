@@ -38,6 +38,7 @@ STATIC_DIR = "static"
 MONGODB_URL = "mongodb://localhost:27017"
 ANALYTICS_DATABASE = "analytics"
 AUTHORIZATION_DATABASE = "authorization"
+URDU_SHAYARI_DATABASE = os.getenv("URDU_SHAYARI_DATABASE", "Urdu_Shayari")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")

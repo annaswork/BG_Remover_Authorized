@@ -1,124 +1,138 @@
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
-import time
-from typing import Callable
-import json
-from database.analytics_model import Analytics
-import analytics.crud as analytics_db
 import asyncio
-from analytics.excluded_paths import EXCLUDE_PATHS
+import json
+import time
+from typing import Optional
+
+import analytics.crud as analytics_db
 import authorization.index as auth_db
+from analytics.excluded_paths import EXCLUDE_PATHS
+from database.analytics_model import Analytics
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-class AnalyticsMiddleware(BaseHTTPMiddleware):
+
+def _headers_scope(scope: Scope) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for k, v in scope.get("headers", []):
+        try:
+            out[k.decode("latin1").lower()] = v.decode("latin1")
+        except Exception:
+            continue
+    return out
+
+
+class AnalyticsMiddleware:
     """
-    Middleware to track API requests and bandwidth usage.
-    Records request count, request/response sizes, and response times.
+    ASGI middleware — tracks API requests without BaseHTTPMiddleware so
+    StreamingResponse and disconnect listeners work correctly.
     """
-    
-    def __init__(self, app: ASGIApp, exclude_paths: list = None):
-        super().__init__(app)
+
+    def __init__(self, app: ASGIApp, exclude_paths: Optional[list] = None):
+        self.app = app
         self.exclude_paths = exclude_paths or EXCLUDE_PATHS
-    
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Skip analytics for excluded paths — exact match for "/" prefix match for others
-        path = request.url.path
-        if path == "/" or any(path.startswith(p) for p in self.exclude_paths if p != "/"):
-            return await call_next(request)
-        
-        # Record start time
-        start_time = time.time()
-        
-        # Get client IP
-        client_ip = request.client.host if request.client else None
-        if "x-forwarded-for" in request.headers:
-            client_ip = request.headers["x-forwarded-for"].split(",")[0].strip()
-        
-        # Get user agent
-        user_agent = request.headers.get("user-agent")
 
-        # Resolve app_name from API key header
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if path == "/" or any(
+            path.startswith(p) for p in self.exclude_paths if p != "/"
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        start_time = time.time()
+        hdrs = _headers_scope(scope)
+
+        client_ip = scope.get("client", (None,))[0]
+        xff = hdrs.get("x-forwarded-for")
+        if xff:
+            client_ip = xff.split(",")[0].strip()
+        user_agent = hdrs.get("user-agent")
+
         app_name = None
-        api_key = request.headers.get("x-api-key")
+        api_key = hdrs.get("x-api-key")
         if api_key:
             key_doc = await auth_db.validate_api_key(api_key)
             if key_doc:
                 app_name = key_doc.get("app_name")
-        
-        # Calculate request size
-        request_size = 0
-        if "content-length" in request.headers:
-            try:
-                request_size = int(request.headers["content-length"])
-            except ValueError:
-                pass
-        else:
-            body_bytes = await request.body()
-            request_size = len(body_bytes)
-            
-            async def receive():
-                return {"type": "http.request", "body": body_bytes}
-            request._receive = receive
-        
-        # Process request
-        response = await call_next(request)
-        
-        # Calculate response time
-        response_time = (time.time() - start_time) * 1000
-        
-        # Calculate response size
-        response_size = 0
-        if "content-length" in response.headers:
-            try:
-                response_size = int(response.headers["content-length"])
-            except ValueError:
-                pass
-        
-        response_body = b""
-        if response_size == 0:
-            response_body = b""
-            async for chunk in response.body_iterator:
-                response_body += chunk
-            response_size = len(response_body)
-            
-            from starlette.responses import Response as StarletteResponse
-            response = StarletteResponse(
-                content=response_body,
-                status_code=response.status_code,
-                headers=dict(response.headers),
-                media_type=response.media_type
-            )
-        elif response.status_code >= 400:
-            # Capture body for error responses so we can persist reason in analytics.
-            async for chunk in response.body_iterator:
-                response_body += chunk
 
-            from starlette.responses import Response as StarletteResponse
-            response = StarletteResponse(
-                content=response_body,
-                status_code=response.status_code,
-                headers=dict(response.headers),
-                media_type=response.media_type
-            )
-        
+        cl_raw = hdrs.get("content-length")
+        has_request_cl = False
+        request_size = 0
+        if cl_raw:
+            try:
+                request_size = int(cl_raw)
+                has_request_cl = True
+            except ValueError:
+                pass
+
+        async def receive_counting() -> Message:
+            nonlocal request_size
+            msg = await receive()
+            if not has_request_cl and msg["type"] == "http.request":
+                request_size += len(msg.get("body") or b"")
+            return msg
+
+        recv: Receive = receive_counting if not has_request_cl else receive
+
+        status_code: Optional[int] = None
+        response_cl: Optional[int] = None
+        response_size = 0
+        error_body = bytearray()
+        max_error_capture = 65536
+
+        async def send_capture(message: Message) -> None:
+            nonlocal status_code, response_cl, response_size
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                response_cl = None
+                for hk, hv in message.get("headers", []):
+                    try:
+                        if hk.decode("latin1").lower() == "content-length":
+                            response_cl = int(hv.decode("latin1"))
+                            break
+                    except Exception:
+                        pass
+            elif message["type"] == "http.response.body":
+                chunk = message.get("body") or b""
+                if response_cl is None:
+                    response_size += len(chunk)
+                if status_code is not None and status_code >= 400:
+                    if len(error_body) < max_error_capture:
+                        take = max_error_capture - len(error_body)
+                        error_body.extend(chunk[:take])
+            await send(message)
+
+        await self.app(scope, recv, send_capture)
+
+        if response_cl is not None:
+            response_size = response_cl
+
+        response_time = (time.time() - start_time) * 1000
         total_bandwidth = request_size + response_size
 
         error_reason = None
-        if response.status_code >= 400 and response_body:
+        if status_code is not None and status_code >= 400 and error_body:
             try:
-                body_text = response_body.decode("utf-8", errors="replace")
+                body_text = error_body.decode("utf-8", errors="replace")
                 parsed = json.loads(body_text)
                 if isinstance(parsed, dict):
-                    error_reason = parsed.get("detail") or parsed.get("message") or body_text
+                    error_reason = (
+                        parsed.get("detail")
+                        or parsed.get("message")
+                        or body_text
+                    )
                 else:
                     error_reason = body_text
             except Exception:
-                error_reason = response_body.decode("utf-8", errors="replace")
-        
+                error_reason = error_body.decode("utf-8", errors="replace")
+
         analytics_record = Analytics(
-            method=request.method,
-            path=request.url.path,
-            status_code=response.status_code,
+            method=scope.get("method", ""),
+            path=path,
+            status_code=status_code or 0,
             request_size=request_size,
             response_size=response_size,
             total_bandwidth=total_bandwidth,
@@ -126,10 +140,6 @@ class AnalyticsMiddleware(BaseHTTPMiddleware):
             user_agent=user_agent,
             response_time_ms=round(response_time, 2),
             app_name=app_name,
-            error_reason=error_reason
+            error_reason=error_reason,
         )
-        
         asyncio.create_task(analytics_db.create_analytics_record(analytics_record))
-        
-        return response
-

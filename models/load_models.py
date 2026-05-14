@@ -9,6 +9,7 @@ import faiss
 import numpy as np
 import requests
 import time
+import gdown
 
 from config.index import (
     DETECTION_MODEL_NAME,
@@ -26,6 +27,7 @@ from config.index import (
     FAISS_INDEX_PATH,
     PLANT_METADATA_PATH,
 )
+from models.url_paths import INSWAPPER_128, GFPGAN_V1_4
 
 def _download_with_resume(url: str, output_path: str, max_retries: int = 10, chunk_size: int = 1024 * 1024):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -104,7 +106,12 @@ except Exception as e:
 if INSWAPPER_ENABLE:
     try:
         if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(f"Model file not found at: {MODEL_PATH}")
+            print(f"Face swapper model not found at {MODEL_PATH}")
+            print("Downloading inswapper model from Google Drive...")
+            os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+            gdown.download(url=INSWAPPER_128, output=MODEL_PATH, quiet=False)
+            if not os.path.exists(MODEL_PATH):
+                raise FileNotFoundError(f"Model file not found at: {MODEL_PATH}")
         
         FACE_SWAPPER_MODEL = insightface.model_zoo.get_model(
             MODEL_PATH,
@@ -141,6 +148,11 @@ else:
 #Load GFPGANv1.4
 if GFPGAN1_4_ENABLE:
     try:
+        if not os.path.exists(GFPGAN_V1_4_PATH):
+            print(f"GFPGAN 1.4 model not found at {GFPGAN_V1_4_PATH}")
+            print("Downloading GFPGAN 1.4 model...")
+            _download_with_resume(url=GFPGAN_V1_4, output_path=GFPGAN_V1_4_PATH)
+
         GFPGAN_V1_4_MODEL = GFPGANer(
             model_path=GFPGAN_V1_4_PATH,
             upscale=1,
