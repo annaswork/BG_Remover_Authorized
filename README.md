@@ -15,6 +15,7 @@ A FastAPI-based background removal service with API key authorization, per-app a
   - [Background Remover](#background-remover)
   - [Authorization](#authorization)
   - [Analytics](#analytics)
+  - [Urdu Shayari](#urdu-shayari)
 - [Authentication](#authentication)
 - [Web Dashboard](#web-dashboard)
 
@@ -39,15 +40,21 @@ BG_Remover_Authorized/
 ├── router/
 │   ├── app_router.py             # BG remover + UI page routes
 │   ├── auth_router.py            # API key management routes
-│   └── analytics_router.py      # Analytics query routes
+│   ├── analytics_router.py       # Analytics query routes
+│   ├── face_app_router.py        # Face-crop routes (if enabled)
+│   ├── plant_id_router.py        # Plant identification routes
+│   └── urdu_ai_router.py         # Urdu Shayari AI (OpenAI + MongoDB)
 │
 ├── controller/
 │   ├── app_controller.py         # Background removal logic (rembg + thread pool)
 │   ├── auth_controller.py        # FastAPI dependencies: require_api_key, require_admin_key
-│   └── analytics_controller.py  # Analytics CRUD (legacy, superseded by analytics/crud.py)
+│   ├── analytics_controller.py   # Analytics CRUD (legacy, superseded by analytics/crud.py)
+│   ├── face_app_controller.py    # Face-crop logic
+│   ├── plant_id_controller.py  # Plant ID logic
+│   └── urdu_ai_controller.py     # Urdu personas, streaming poetry/chat, chat history
 │
 ├── analytics/
-│   ├── middleware.py             # Starlette middleware — records every API request
+│   ├── middleware.py             # ASGI analytics middleware — records every API request
 │   ├── crud.py                   # Async MongoDB queries for analytics data
 │   ├── routes.py                 # Re-exports analytics router (compatibility shim)
 │   ├── excluded_paths.py         # Paths excluded from analytics tracking
@@ -66,13 +73,17 @@ BG_Remover_Authorized/
 ├── utils/
 │   ├── preprocess_image.py       # Image reading, EXIF fix, CV2 conversion, filename generation
 │   ├── postprocess_image.py      # Image saving and URL generation
-│   └── functions.py              # General utility placeholder
+│   ├── functions.py              # General utility placeholder
+│   ├── slm_plant_profile.py      # Plant identification helpers
+│   └── urdu_ai_profile.py        # Urdu Shayari prompts and persona roles
 │
 ├── templates/
 │   └── index.html                # Single-page web dashboard (vanilla JS, Chart.js)
 │
-└── static/
-    └── results/                  # Output directory for processed images
+├── static/
+│   └── results/                  # Output directory for processed images
+│
+└── URDU_SHAYARI_API.md           # Dedicated reference for /api/urdu-shayari endpoints
 ```
 
 ---
@@ -88,7 +99,7 @@ Starts the uvicorn server using host/port from `config/index.py`. Run this to st
 ### `config/index.py`
 Central configuration. Loads `.env` and exposes all constants:
 - `IP`, `PORT` — server bind address
-- `MONGODB_URL`, `ANALYTICS_DATABASE`, `AUTHORIZATION_DATABASE` — database config
+- `MONGODB_URL`, `ANALYTICS_DATABASE`, `AUTHORIZATION_DATABASE`, `URDU_SHAYARI_DATABASE` — database config
 - `SECRET_KEY` — used to HMAC-sign generated API keys
 - `ADMIN_API_KEY` — master key for admin-only operations
 - `ANALYTICS_COLLECTION_NAME`, `AUTHORIZATION_COLLECTION_NAME` — MongoDB collection names
@@ -98,7 +109,7 @@ Central configuration. Loads `.env` and exposes all constants:
 Initializes the FastAPI app instance with title, description, version. Mounts `/static` and `/templates` directories. Configures CORS (all origins), registers a `ThreadPoolExecutor` for CPU-bound tasks, and enables HEIF image support via `pillow_heif`.
 
 ### `analytics/middleware.py`
-Starlette `BaseHTTPMiddleware` that intercepts every non-excluded request. Records: HTTP method, path, status code, request/response sizes, total bandwidth, client IP, user agent, response time, and `app_name` (resolved by looking up the `X-API-Key` header against MongoDB). Stores records asynchronously using `asyncio.create_task` to avoid blocking responses.
+Pure **ASGI** middleware (not `BaseHTTPMiddleware`) so streaming responses work correctly. Intercepts every non-excluded HTTP request and records: method, path, status code, request/response sizes, total bandwidth, client IP, user agent, response time, and `app_name` (resolved from the `X-API-Key` header via MongoDB). Persists each record asynchronously with `asyncio.create_task`.
 
 ### `analytics/excluded_paths.py`
 List of path prefixes excluded from analytics tracking. Includes `/`, `/docs`, `/static`, `/api/analytics`, `/api/auth`, and others.
@@ -132,7 +143,7 @@ FastAPI security dependencies:
 Background removal logic. Reads the uploaded image, converts it to PNG bytes, runs `rembg.remove()` in the thread pool (non-blocking), saves the result as WebP to `static/results/`, and returns the public URL. The rembg session (`u2net` model) is loaded once at module import time to avoid per-request model loading overhead.
 
 ### `database/database_config.py`
-Async MongoDB client using `motor`. Provides `connect_to_mongo()`, `close_mongo_connection()`, `get_analytics_db()`, and `get_authorization_db()`.
+Async MongoDB client using `motor`. Provides `connect_to_mongo()`, `close_mongo_connection()`, `get_analytics_db()`, and `get_authorization_db()`. Also exposes a **sync** PyMongo client and collections for **Urdu Shayari** (`URDU_SHAYARI_DATABASE`, default `Urdu_Shayari`): `shayari_by_topics`, `shayari_by_types`, and `ai_conversation`.
 
 ### `database/analytics_model.py`
 Pydantic models for analytics data:
@@ -141,6 +152,9 @@ Pydantic models for analytics data:
 
 ### `database/authorization_model.py`
 Pydantic model `APIKey` with fields: `app_name`, `api_key`, `created_at`, `is_active`.
+
+### `URDU_SHAYARI_API.md`
+Standalone reference for **`/api/urdu-shayari`** endpoints: authentication, request/response shapes, streaming behavior, MongoDB collections, and error codes.
 
 ---
 
@@ -159,6 +173,10 @@ ANALYTICS_DATABASE=analytics
 AUTHORIZATION_DATABASE=authorization
 SECRET_KEY=your-secret-key-here
 ADMIN_API_KEY=your-admin-key-here
+
+# Optional — Urdu Shayari AI (/api/urdu-shayari)
+OPENAI_API_KEY=sk-...
+URDU_SHAYARI_DATABASE=Urdu_Shayari
 ```
 
 ### 3. MongoDB
@@ -307,16 +325,35 @@ Parameter: `days` (default `90`) — deletes records older than this many days.
 
 ---
 
+### Urdu Shayari
+
+Base prefix: **`/api/urdu-shayari`**  
+All routes require **`X-API-Key`** (same MongoDB-issued keys as the background remover).
+
+Features: persona chat (JSON or streamed plain text), streamed poetry by topic/type, and chat history read/delete backed by OpenAI and the **`URDU_SHAYARI_DATABASE`** MongoDB database.
+
+**Full reference (parameters, bodies, responses, errors):** [URDU_SHAYARI_API.md](./URDU_SHAYARI_API.md)
+
+---
+
 ## Authentication
 
 The system uses two separate authentication layers:
 
 ### API Key (`X-API-Key`)
-Required to call the background removal endpoint. Generated per-app via the admin panel or `POST /api/auth/generate-key`.
+Required to call protected app endpoints, including **background removal** and **Urdu Shayari** (`/api/urdu-shayari/*`). Keys are generated per app via the admin panel or `POST /api/auth/generate-key`.
 
 ```
 POST /api/bg-remover/remove
 X-API-Key: <your-api-key>
+```
+
+```
+POST /api/urdu-shayari/ai-conversation?character=Shayar&username=demo
+X-API-Key: <your-api-key>
+Content-Type: application/json
+
+{"prompt":"..."}
 ```
 
 ### Admin Key (`X-Admin-Key`)
@@ -359,5 +396,11 @@ Accessible at `http://<host>:<port>/`
 - Filterable log table with app name dropdown, status code dropdown, and date pickers
 - Pagination (50 records per page)
 - Cleanup old records
+
+### Urdu Shayari AI
+- Paste **`X-API-Key`** for all calls on this page
+- **AI conversation:** full JSON reply (**Send**) or incremental **Stream reply** (same fields)
+- **Stream poetry** by topic or by type (plain text stream)
+- **Chat history:** load or delete by filters documented in [URDU_SHAYARI_API.md](./URDU_SHAYARI_API.md)
 
 > Admin sections require entering the `ADMIN_API_KEY` via the Admin Login button in the sidebar. The key is held in memory only and cleared on page refresh.
