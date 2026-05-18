@@ -111,4 +111,28 @@ if FAISS_ENABLE:
             print(f"Error downloading embeddings folder: {e}")
             print("Please manually download the folder and place it in models/embeddings_h14/")
 
+# 7: LAMA and SAM models
+try:
+    from config.index import LAMA_ENABLE, SAM_ENABLE, LAMA_MODEL_PATH, SAM_MODEL_PATH
+except ImportError:
+    from config import LAMA_ENABLE, SAM_ENABLE, LAMA_MODEL_PATH, SAM_MODEL_PATH
+
+if LAMA_ENABLE:
+    lama_out = os.path.join("models", "lama.pth")
+    if os.path.exists(lama_out):
+        print(f"Skipping {lama_out}, file already exists.")
+    else:
+        print(f"Downloading LAMA model from {LAMA_MODEL_PATH}...")
+        gdown.download(url=LAMA_MODEL_PATH, output=lama_out, quiet=False)
+
+if SAM_ENABLE:
+    sam_out = os.path.join("models", "sam2_1_tiny.pth")
+    if os.path.exists(sam_out):
+        print(f"Skipping {sam_out}, file already exists.")
+    else:
+        print(f"Downloading SAM model from {SAM_MODEL_PATH}...")
+        gdown.download(url=SAM_MODEL_PATH, output=sam_out, quiet=False)
+
+print("All downloads completed")
+
 print("All downloads completed")

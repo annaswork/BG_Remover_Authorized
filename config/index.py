@@ -18,7 +18,8 @@ def _get_int_env(name: str, default: int, minimum: int = 1) -> int:
     except (TypeError, ValueError):
         return default
 
-IP = "172.16.0.94"
+IP = "0.0.0.0"
+SYSTEM_IP="172.16.0.94"
 PORT = 8000
 
 #App Information
@@ -47,11 +48,12 @@ AUTHORIZATION_COLLECTION_NAME = "api_keys"
 
 #Image Path and URL Prefix
 IMAGE_PATH = "static/results/"
-IMAGE_URL_PREFIX = f"http://{IP}:{PORT}/static/"
+IMAGE_URL_PREFIX = f"http://{SYSTEM_IP}:{PORT}/static/"
 
 #InsightFace variables
 INSIGHTFACE_MODEL = "buffalo_l"
 INSIGHTFACE_MODEL_ROOT = f"C:/Users/muhammadannasasif/.insightface"
+# INSIGHTFACE_MODEL_ROOT = f"/root/.insightface"
 
 # --------------------------------------------------------------------------------------
 # Models / paths
@@ -110,3 +112,28 @@ FAISS_INDEX_PATH = os.path.join(ROOT_DIR, "models", "plant_faiss_index.index")
 
 # Plant Metadata Path
 PLANT_METADATA_PATH = os.path.join(ROOT_DIR, "models", "embeddings_h14", "metadata.json")
+
+# --------------------------------------------------------------------------------------
+# Object Remover (LaMa + SAM)
+# --------------------------------------------------------------------------------------
+
+# Enable/disable LaMa inpainting model
+LAMA_ENABLE = _get_bool_env("LAMA_ENABLE", True)
+
+# LaMa model type (IOPaint will download automatically if not present)
+LAMA_MODEL_TYPE = os.getenv("LAMA_MODEL_TYPE", "lama")
+
+# Enable/disable SAM segmentation model
+SAM_ENABLE = _get_bool_env("SAM_ENABLE", True)
+
+# SAM model type: "sam" (original) or "sam2" (newer, faster)
+SAM_MODEL_TYPE = os.getenv("SAM_MODEL_TYPE", "sam")
+
+# Device for object remover models: "cpu" or "cuda"
+OBJECT_REMOVER_DEVICE = os.getenv("OBJECT_REMOVER_DEVICE", "cpu")
+
+# Results directory for object remover output
+OBJECT_REMOVER_RESULTS_DIR = os.path.join(ROOT_DIR, "static", "object_remover_results")
+
+# URL prefix for object remover results
+OBJECT_REMOVER_URL_PREFIX = "/static/object_remover_results"

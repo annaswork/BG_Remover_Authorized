@@ -66,6 +66,10 @@ def save_prompt_in_db(
     }
     if gender != "":
         json_data["gender"] = gender
+    
+    # For poetry by topic/type, store the search value for retrieval
+    if check in ("by_type", "by_topic"):
+        json_data["search_value"] = user_prompt
 
     if check == "by_type":
         result = collection_by_type.insert_one(json_data)
@@ -132,10 +136,12 @@ def gen_ai_function_stream(
             stream=True,
         )
         sentence = ""
+        all_sentences = []  # Collect all sentences for database storage
         for chunk in stream:
             data = chunk.choices[0].delta.content
             if data is None and sentence != "":
                 yield sentence
+                all_sentences.append(sentence)
             if data is not None:
                 if "]" not in data:
                     sentence += data
@@ -150,7 +156,22 @@ def gen_ai_function_stream(
                             sentence = sentence[:-1]
                         yield sentence
                         yield "\n"
+                        all_sentences.append(sentence)
                     sentence = ""
+        
+        # Save the complete response to database after streaming completes
+        if all_sentences:
+            full_response = "\n".join(all_sentences)
+            save_prompt_in_db(
+                full_response,
+                user_value,  # The topic or type that was searched
+                username,
+                user_time,
+                "",  # character (not applicable for poetry by topic/type)
+                check,  # "by_topic" or "by_type"
+                "",  # character_name (not applicable)
+                "",  # gender (not applicable)
+            )
     except Exception:
         yield ""
 

@@ -43,6 +43,7 @@ BG_Remover_Authorized/
 │   ├── analytics_router.py       # Analytics query routes
 │   ├── face_app_router.py        # Face-crop routes (if enabled)
 │   ├── plant_id_router.py        # Plant identification routes
+│   ├── object_remover_router.py  # Object remover routes (LaMa + SAM)
 │   └── urdu_ai_router.py         # Urdu Shayari AI (OpenAI + MongoDB)
 │
 ├── controller/
@@ -50,7 +51,8 @@ BG_Remover_Authorized/
 │   ├── auth_controller.py        # FastAPI dependencies: require_api_key, require_admin_key
 │   ├── analytics_controller.py   # Analytics CRUD (legacy, superseded by analytics/crud.py)
 │   ├── face_app_controller.py    # Face-crop logic
-│   ├── plant_id_controller.py  # Plant ID logic
+│   ├── plant_id_controller.py    # Plant ID logic
+│   ├── object_remover_controller.py  # Object remover logic (LaMa inpainting + SAM segmentation)
 │   └── urdu_ai_controller.py     # Urdu personas, streaming poetry/chat, chat history
 │
 ├── analytics/
@@ -74,6 +76,7 @@ BG_Remover_Authorized/
 │   ├── preprocess_image.py       # Image reading, EXIF fix, CV2 conversion, filename generation
 │   ├── postprocess_image.py      # Image saving and URL generation
 │   ├── functions.py              # General utility placeholder
+│   ├── sam_process.py            # SAM segmentation wrapper for object remover
 │   ├── slm_plant_profile.py      # Plant identification helpers
 │   └── urdu_ai_profile.py        # Urdu Shayari prompts and persona roles
 │
@@ -82,8 +85,10 @@ BG_Remover_Authorized/
 │
 ├── static/
 │   └── results/                  # Output directory for processed images
+│   └── object_remover_results/   # Output directory for object remover results
 │
 └── URDU_SHAYARI_API.md           # Dedicated reference for /api/urdu-shayari endpoints
+└── OBJECT_REMOVER_FEATURE.md     # Dedicated reference for /api/object-remover endpoints
 ```
 
 ---
@@ -333,6 +338,25 @@ All routes require **`X-API-Key`** (same MongoDB-issued keys as the background r
 Features: persona chat (JSON or streamed plain text), streamed poetry by topic/type, and chat history read/delete backed by OpenAI and the **`URDU_SHAYARI_DATABASE`** MongoDB database.
 
 **Full reference (parameters, bodies, responses, errors):** [URDU_SHAYARI_API.md](./URDU_SHAYARI_API.md)
+
+---
+
+### Object Remover
+
+Base prefix: **`/api/object-remover`**  
+All routes require **`X-API-Key`** (except health check).
+
+Features: AI-powered object removal using LaMa (inpainting) and SAM (segmentation). Upload an image, click on objects to segment them, and remove them seamlessly.
+
+**Full reference:** [OBJECT_REMOVER_FEATURE.md](./OBJECT_REMOVER_FEATURE.md)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/object-remover/health` | None | Check if LaMa and SAM models are loaded |
+| `POST` | `/api/object-remover/inpaint` | `X-API-Key` | Remove object using base64 image + mask |
+| `POST` | `/api/object-remover/inpaint-file` | `X-API-Key` | Remove object using file uploads |
+| `POST` | `/api/object-remover/sam` | `X-API-Key` | Generate segmentation mask from click points |
+| `DELETE` | `/api/object-remover/clear-results` | `X-API-Key` | Delete all saved result images |
 
 ---
 

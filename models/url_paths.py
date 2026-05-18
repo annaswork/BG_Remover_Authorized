@@ -10,3 +10,6 @@ BIOCLIP = "https://huggingface.co/imageomics/bioclip-2.5-vith14/resolve/main/ope
 PLANT_FAISS_INDEX = "https://drive.google.com/uc?id=1ORyJNJK0qomgR7mItrDhDpD4vzhV9Rmy"
 
 EMBEDDINGS_FOLDER_ID = "1dveOrPqmvtuCLTAk1DVcNDFSeG11uzxV"
+
+LAMA_MODEL_PATH = "https://drive.google.com/file/d/17HaVHhbFXFVDWnbit3_bN4uhGj3ybSRK/view?usp=sharing"
+SAM_MODEL_PATH = "https://drive.google.com/file/d/1e5Mvj41NVlJ6huOukcFXmjF9z1QZHmhQ/view?usp=sharing"

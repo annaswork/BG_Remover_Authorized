@@ -84,7 +84,9 @@ async def upsert_plant_full_info(
     common_name: str,
     profile_data: dict,
     family: str = "",
-    genus: str = ""
+    genus: str = "",
+    image_urls: list = [],
+    img_avail: bool= False
 ) -> dict:
     """Create or update plant with full information"""
     collection = db["plant_profiles"]
@@ -96,14 +98,11 @@ async def upsert_plant_full_info(
         "genus": genus,
         **profile_data,
         "all_info": True,
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.utcnow(),
+        "image_urls": image_urls,
+        "img_avail": img_avail
     }
-    
-    # Ensure image fields exist
-    if "image_urls" not in full_data:
-        full_data["image_urls"] = []
-    if "img_avail" not in full_data:
-        full_data["img_avail"] = False
+
     
     result = await collection.update_one(
         {"scientific_name": scientific_name},

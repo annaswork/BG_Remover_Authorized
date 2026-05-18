@@ -1,7 +1,7 @@
 from fastapi import HTTPException, UploadFile
 from fastapi.encoders import jsonable_encoder
 import asyncio
-from inits.server_init import thread_pool
+from inits.server_init import thread_pool, driver
 from inits.models_init import (
     bioclip_model,
     bioclip_preprocess,
@@ -16,6 +16,9 @@ import numpy as np
 from database.database_config import get_authorization_db
 from database import plant_crud
 import re
+
+from utils.image_scraper import scrape_thumbnails, download_thumbnails
+
 try:
     from bson import ObjectId
 except Exception:  # pragma: no cover - fallback when bson is unavailable
@@ -270,6 +273,7 @@ async def predict_plant(file: UploadFile, top_k: int = 1) -> dict:
         else:
             common_name = scientific_name.split()[0]
         
+
         # Save basic info to MongoDB
         await plant_crud.create_plant_basic(
             db=db,
@@ -298,8 +302,7 @@ async def predict_plant(file: UploadFile, top_k: int = 1) -> dict:
     
     return {
         "message": "Plant identification completed",
-        "results": [result],
-        "top_match": result
+        "results": [result]
     }
 
 async def get_more_info(scientific_name: str) -> dict:
@@ -449,13 +452,22 @@ async def search_plant(query_params: dict) -> dict:
     
     # Save to MongoDB
     common_name = profile.get("common_name", target_name.split()[0])
+
+    #Thumbnails scraped for required plant
+    urls = scrape_thumbnails(driver,common_name + " plant")
+    image_urls = download_thumbnails(urls, common_name, base_url="http://aiapps.thetatechnologies.co")
+
+    img_avail=True
+
     await plant_crud.upsert_plant_full_info(
         db=db,
         scientific_name=target_name,
         common_name=common_name,
         profile_data=profile,
         family=family,
-        genus=genus
+        genus=genus,
+        image_urls=image_urls,
+        img_avail=img_avail
     )
     print(f"[Search] Saved full info to DB: {target_name}")
     
