@@ -26,10 +26,6 @@ from config.index import (
     FAISS_ENABLE,
     FAISS_INDEX_PATH,
     PLANT_METADATA_PATH,
-    LAMA_ENABLE,
-    LAMA_MODEL_TYPE,
-    SAM_ENABLE,
-    SAM_MODEL_TYPE,
 )
 from models.url_paths import INSWAPPER_128, GFPGAN_V1_4
 
@@ -279,50 +275,3 @@ if torch.cuda.is_available():
     torch.backends.cuda.enable_flash_sdp(False)
     torch.backends.cuda.enable_mem_efficient_sdp(False)
     torch.backends.cuda.enable_math_sdp(True)
-
-# Shared device for LaMa and SAM
-FORCE_CPU = os.environ.get("FORCE_CPU", "false").lower() == "true"
-_INPAINT_DEVICE = torch.device("cpu" if FORCE_CPU else ("cuda" if torch.cuda.is_available() else "cpu"))
-
-# Load LaMa Inpainting Model
-if LAMA_ENABLE:
-    try:
-        from iopaint.model_manager import ModelManager
-        print(f"[load_models] Loading LaMa model on {_INPAINT_DEVICE}...")
-        LAMA_MODEL = ModelManager(
-            name="lama",
-            device=_INPAINT_DEVICE,
-            no_half=False,
-            low_mem=False,
-            disable_nsfw=False,
-            sd_cpu_textencoder=False,
-            local_files_only=False,
-            cpu_offload=False,
-        )
-        print("[load_models] LaMa model loaded successfully!")
-    except Exception as e:
-        print(f"[ERROR] Failed to load LaMa model: {e}")
-        print(traceback.format_exc())
-        LAMA_MODEL = None
-else:
-    LAMA_MODEL = None
-
-#===========================================================================================================================
-
-
-# Load SAM Segmentation Model
-if SAM_ENABLE:
-    try:
-        from utils.sam_process import SAMProcessor
-        print(f"[load_models] Loading SAM model ({SAM_MODEL_TYPE}) on {_INPAINT_DEVICE}...")
-        SAM_PROCESSOR = SAMProcessor(
-            model_type=SAM_MODEL_TYPE,
-            device=str(_INPAINT_DEVICE),
-        )
-        print("[load_models] SAM model loaded successfully!")
-    except Exception as e:
-        print(f"[ERROR] Failed to load SAM model: {e}")
-        print(traceback.format_exc())
-        SAM_PROCESSOR = None
-else:
-    SAM_PROCESSOR = None

@@ -47,12 +47,10 @@ os.makedirs(config_.STATIC_DIR, exist_ok=True)
 Create Required folders (
     results: for storing results of bg_remover and face_swapper
     plants: for storing plant images by scrapper
-    object_remover_results: for storing object remover inpainting results
 )
 """
 os.makedirs(config_.STATIC_DIR + "/results", exist_ok=True)
 os.makedirs(config_.STATIC_DIR + "/plants", exist_ok=True)
-os.makedirs(config_.OBJECT_REMOVER_RESULTS_DIR, exist_ok=True)
 app.mount(
     f"/{config_.STATIC_DIR}",
     StaticFiles(directory=config_.STATIC_DIR),
