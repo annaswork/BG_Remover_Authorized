@@ -9,10 +9,11 @@ from inits.models_init import (
     plant_metadata,
     plant_profiler,
 )
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 import torch
 import numpy as np
+import cv2
 from database.database_config import get_authorization_db
 from database import plant_crud
 import re
@@ -183,6 +184,38 @@ def _is_allowed_domain_query(name: str) -> tuple[bool, str | None, str]:
 
     return False, None, "No botanical metadata loaded; query doesn't look like a scientific name"
 
+def _bytes_to_pil(image_bytes: bytes) -> Image.Image:
+    """
+    Convert raw image bytes to a PIL RGB Image.
+    Tries PIL first (handles EXIF orientation), falls back to OpenCV
+    which is more tolerant of non-standard headers and progressive JPEGs.
+    """
+    # --- Attempt 1: PIL with EXIF correction ---
+    try:
+        stream = io.BytesIO(image_bytes)
+        img = Image.open(stream)
+        img = ImageOps.exif_transpose(img)   # fix rotated photos from phones
+        return img.convert("RGB")
+    except Exception as pil_err:
+        print(f"[_bytes_to_pil] PIL failed (len={len(image_bytes)}, header={image_bytes[:16].hex()}): {pil_err}")
+        pass  # fall through to OpenCV
+
+    # --- Attempt 2: OpenCV (handles more formats / corrupt headers) ---
+    try:
+        arr = np.frombuffer(image_bytes, dtype=np.uint8)
+        bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if bgr is None:
+            raise ValueError("cv2.imdecode returned None — unrecognised format")
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        return Image.fromarray(rgb)
+    except Exception as cv_err:
+        raise ValueError(
+            f"PIL failed and OpenCV fallback also failed.\n"
+            f"  PIL error : {pil_err}\n"
+            f"  OpenCV error: {cv_err}"
+        )
+
+
 def _encode_image_sync(image_bytes: bytes) -> np.ndarray:
     """
     Synchronous worker to encode an image using BioCLIP.
@@ -190,24 +223,32 @@ def _encode_image_sync(image_bytes: bytes) -> np.ndarray:
     """
     if bioclip_model is None or bioclip_preprocess is None:
         raise HTTPException(status_code=503, detail="BioCLIP model not loaded")
-    
+
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Empty image data received")
+
     try:
-        # Load image from bytes
-        image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        
+        image = _bytes_to_pil(image_bytes)
+
         # Preprocess image
         image_tensor = bioclip_preprocess(image).unsqueeze(0)
-        
+
         # Encode image to get embedding
         with torch.no_grad():
             image_features = bioclip_model.encode_image(image_tensor)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-        
+
         # Convert to numpy
         embedding = image_features.cpu().numpy().astype('float32')
         return embedding
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error encoding image: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not process image: {str(e)}. "
+                   "Please upload a valid image (JPEG, PNG, WEBP, etc.)."
+        )
 
 async def predict_plant(file: UploadFile, top_k: int = 1) -> dict:
     """
@@ -227,7 +268,21 @@ async def predict_plant(file: UploadFile, top_k: int = 1) -> dict:
     
     # Read image bytes
     file_bytes = await file.read()
-    
+
+    if not file_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="No image data received. Make sure the file field is named 'file' and contains a valid image."
+        )
+
+    # Reject obviously non-image content types early
+    content_type = (file.content_type or "").lower()
+    if content_type and not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{content_type}'. Please upload an image (JPEG, PNG, WEBP, etc.)."
+        )
+
     # Encode image in thread pool
     loop = asyncio.get_event_loop()
     query_vector = await loop.run_in_executor(thread_pool, _encode_image_sync, file_bytes)
@@ -302,7 +357,8 @@ async def predict_plant(file: UploadFile, top_k: int = 1) -> dict:
     
     return {
         "message": "Plant identification completed",
-        "results": [result]
+        "results": [result],
+        "top_match": result,   # convenience alias used by the frontend
     }
 
 async def get_more_info(scientific_name: str) -> dict:

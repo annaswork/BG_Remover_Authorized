@@ -4,6 +4,8 @@ from fastapi import HTTPException, UploadFile
 from PIL import Image
 from io import BytesIO
 import asyncio
+import numpy as np
+import cv2
 import config.index as _config
 from utils.preprocess_image import read_image, generate_unique_path
 from inits.server_init import thread_pool
@@ -13,7 +15,7 @@ _rembg_session = new_session("u2net")
 
 
 def _process_image(image: Image.Image, output_path: str) -> str:
-    """CPU-bound work: remove background and save. Runs in thread pool."""
+    """CPU-bound work: remove background and save as WEBP. Runs in thread pool."""
     img_bytes = BytesIO()
     image.save(img_bytes, format="PNG")
     img_bytes.seek(0)
@@ -21,7 +23,16 @@ def _process_image(image: Image.Image, output_path: str) -> str:
     result_bytes = rembg.remove(img_bytes.read(), session=_rembg_session)
 
     result_image = Image.open(BytesIO(result_bytes))
-    result_image.save(output_path, "WEBP")
+
+    # Ensure RGBA mode to preserve transparency
+    if result_image.mode != "RGBA":
+        result_image = result_image.convert("RGBA")
+
+    # Use OpenCV to save as WEBP — works regardless of Pillow's libwebp support
+    # PIL RGBA → numpy → cv2 BGRA (OpenCV uses BGR channel order)
+    img_array = np.array(result_image)                        # H x W x 4, RGBA
+    img_bgra  = cv2.cvtColor(img_array, cv2.COLOR_RGBA2BGRA)  # BGRA for OpenCV
+    cv2.imwrite(output_path, img_bgra, [cv2.IMWRITE_WEBP_QUALITY, 90])
 
     return output_path
 

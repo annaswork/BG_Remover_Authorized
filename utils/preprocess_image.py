@@ -37,5 +37,13 @@ async def create_thumbnail(image_path, output_path):
         #2. Resizing using Lanczos resampling for high quality
         img.thumbnail(new_size, Image.Resampling.LANCZOS)
 
-        #3. Save with compression
-        img.save(output_path, 'webp', optimize=True, quality=70)
+        #3. Convert to numpy and save with OpenCV (avoids Pillow libwebp dependency)
+        import numpy as np
+        import cv2
+        if img.mode == "RGBA":
+            img_array = np.array(img)
+            img_cv = cv2.cvtColor(img_array, cv2.COLOR_RGBA2BGRA)
+        else:
+            img_array = np.array(img.convert("RGB"))
+            img_cv = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(output_path, img_cv, [cv2.IMWRITE_WEBP_QUALITY, 70])

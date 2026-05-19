@@ -127,11 +127,16 @@ def detect_face_and_crop_image(image, width, height, unit, dpi, filename, model)
         buf.seek(0)
 
         result_bytes = rembg.remove(buf.getvalue(), session=_rembg_session)
-        result_image = Image.open(BytesIO(result_bytes)).convert("RGB")
+        result_image = Image.open(BytesIO(result_bytes)).convert("RGBA")
 
         os.makedirs(_config.IMAGE_PATH, exist_ok=True)
         output_path = f"{_config.IMAGE_PATH}{filename}"
-        result_image.save(output_path, "WEBP")
+
+        # Use OpenCV to save as WEBP — works regardless of Pillow's libwebp support
+        import numpy as np
+        img_array = np.array(result_image)                        # H x W x 4, RGBA
+        img_bgra  = cv2.cvtColor(img_array, cv2.COLOR_RGBA2BGRA)  # BGRA for OpenCV
+        cv2.imwrite(output_path, img_bgra, [cv2.IMWRITE_WEBP_QUALITY, 90])
 
         image_url = f"{_config.IMAGE_URL_PREFIX}results/{filename}"
         return {
@@ -184,7 +189,7 @@ async def detect_face_and_crop(file: UploadFile, width: float, height: float, un
 # Source image should have only one face available
 # Target image can have 1 or more faces available for swapping
 """
-def face_swap_func(source, target, swapper_model, model, enhancer, src_filename, tgt_filename, enhance=False):
+def face_swap_func(source, target, swapper_model, model, enhancer, src_filename, tgt_filename, enhance=True):
     """
     Synchronous worker that performs face swap.
     Args:
