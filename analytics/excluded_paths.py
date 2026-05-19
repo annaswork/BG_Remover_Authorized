@@ -67,4 +67,5 @@ EXCLUDE_PATHS = [
     "/public",
     "/wiki",
     "/heartbeat",
+    "/openapi.json"
 ]
