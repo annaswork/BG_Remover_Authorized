@@ -16,6 +16,8 @@ A FastAPI-based background removal service with API key authorization, per-app a
   - [Authorization](#authorization)
   - [Analytics](#analytics)
   - [Urdu Shayari](#urdu-shayari)
+  - [BP Health Report](#bp-health-report)
+  - [Object Remover](#object-remover)
 - [Authentication](#authentication)
 - [Web Dashboard](#web-dashboard)
 
@@ -43,6 +45,7 @@ BG_Remover_Authorized/
 │   ├── analytics_router.py       # Analytics query routes
 │   ├── face_app_router.py        # Face-crop routes (if enabled)
 │   ├── plant_id_router.py        # Plant identification routes
+│   ├── bp_report_router.py       # BP health report routes
 │   ├── object_remover_router.py  # Object remover routes (LaMa + SAM)
 │   └── urdu_ai_router.py         # Urdu Shayari AI (OpenAI + MongoDB)
 │
@@ -52,6 +55,7 @@ BG_Remover_Authorized/
 │   ├── analytics_controller.py   # Analytics CRUD (legacy, superseded by analytics/crud.py)
 │   ├── face_app_controller.py    # Face-crop logic
 │   ├── plant_id_controller.py    # Plant ID logic
+│   ├── bp_report_controller.py   # BP report logic (GPT prompt + HTML render)
 │   ├── object_remover_controller.py  # Object remover logic (LaMa inpainting + SAM segmentation)
 │   └── urdu_ai_controller.py     # Urdu personas, streaming poetry/chat, chat history
 │
@@ -76,12 +80,14 @@ BG_Remover_Authorized/
 │   ├── preprocess_image.py       # Image reading, EXIF fix, CV2 conversion, filename generation
 │   ├── postprocess_image.py      # Image saving and URL generation
 │   ├── functions.py              # General utility placeholder
+│   ├── chatgptFunction.py        # OpenAI GPT wrapper (used by BP report)
 │   ├── sam_process.py            # SAM segmentation wrapper for object remover
 │   ├── slm_plant_profile.py      # Plant identification helpers
 │   └── urdu_ai_profile.py        # Urdu Shayari prompts and persona roles
 │
 ├── templates/
-│   └── index.html                # Single-page web dashboard (vanilla JS, Chart.js)
+│   ├── index.html                # Single-page web dashboard (vanilla JS, Chart.js)
+│   └── report.html               # BP health report HTML template (rendered server-side)
 │
 ├── static/
 │   └── results/                  # Output directory for processed images
@@ -182,6 +188,9 @@ ADMIN_API_KEY=your-admin-key-here
 # Optional — Urdu Shayari AI (/api/urdu-shayari)
 OPENAI_API_KEY=sk-...
 URDU_SHAYARI_DATABASE=Urdu_Shayari
+
+# Optional — BP Health Report (/api/bp-report)
+BP_REPORT_KEY=sk-...   # dedicated OpenAI key; falls back to OPENAI_API_KEY if not set
 ```
 
 ### 3. MongoDB
@@ -341,6 +350,36 @@ Features: persona chat (JSON or streamed plain text), streamed poetry by topic/t
 
 ---
 
+### BP Health Report
+
+Base prefix: **`/api/bp-report`**  
+The `health-report` endpoint requires **`X-API-Key`**.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/bp-report/` | None | Health check — returns running status |
+| `POST` | `/api/bp-report/health-report` | `X-API-Key` | Generate AI-powered BP health report |
+
+#### `POST /api/bp-report/health-report`
+**Headers:** `X-API-Key: <your-api-key>`, `Content-Type: application/json`  
+**Body:**
+```json
+{
+  "systolic": 120,
+  "diastolic": 80,
+  "heart_rate": 72,
+  "patient_age": 35,
+  "patient_weight": "70 kg",
+  "patient_height": "175 cm",
+  "patient_gender": "male"
+}
+```
+**Response:** `text/html` — a fully rendered health report page with GPT-generated clinical recommendations covering interpretation, medication, nutrition, physical activity, mental health, preventive care, sleep hygiene, and more.
+
+The report is generated using the `BP_REPORT_KEY` from `.env` (falls back to `OPENAI_API_KEY`).
+
+---
+
 ### Object Remover
 
 Base prefix: **`/api/object-remover`**  
@@ -426,5 +465,11 @@ Accessible at `http://<host>:<port>/`
 - **AI conversation:** full JSON reply (**Send**) or incremental **Stream reply** (same fields)
 - **Stream poetry** by topic or by type (plain text stream)
 - **Chat history:** load or delete by filters documented in [URDU_SHAYARI_API.md](./URDU_SHAYARI_API.md)
+
+### BP Health Report
+- Paste **`X-API-Key`**
+- Enter patient vitals: systolic, diastolic, heart rate, age, weight, height, gender
+- Click **Generate Report** — the AI-generated HTML report renders inline in an iframe
+- Use **Print / Save PDF** to export the report via the browser print dialog
 
 > Admin sections require entering the `ADMIN_API_KEY` via the Admin Login button in the sidebar. The key is held in memory only and cleared on page refresh.

@@ -8,6 +8,7 @@ from router.analytics_router import router as analytics_router
 from router.auth_router import router as auth_router
 from router.plant_id_router import router as plant_router
 from router.urdu_ai_router import router as urdu_ai_router
+from router.bp_report_router import router as bp_report_router
 
 
 # ── Lifespan: DB connect / disconnect ────────────────────────────────────────
@@ -24,3 +25,4 @@ app.include_router(analytics_router)         # /api/analytics
 app.include_router(auth_router)              # /api/auth
 app.include_router(plant_router)             # /api/plant-id
 app.include_router(urdu_ai_router)           # /api/urdu-shayari
+app.include_router(bp_report_router)         # /api/bp-report

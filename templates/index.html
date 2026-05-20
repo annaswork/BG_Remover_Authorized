@@ -252,6 +252,12 @@
     </svg>
     <span>Urdu Shayari AI</span>
   </div>
+  <div class="nav-item" data-nav="bp-report" onclick="navigate('bp-report')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+    <span>BP Report</span>
+  </div>
 
   <div class="nav-section">Admin</div>
   <div class="nav-item" data-nav="authorization" onclick="navigate('authorization')">
@@ -928,6 +934,90 @@
       </div>
       <pre id="urdu-hist-out" style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:8px;font-size:0.78rem;white-space:pre-wrap;max-height:280px;overflow:auto;display:none;"></pre>
       <div class="alert" id="urdu-hist-alert"></div>
+    </div>
+  </div>
+
+  <!-- ── BP REPORT PAGE ── -->
+  <div id="page-bp-report" class="page">
+    <div class="page-header">
+      <h2>BP Health Report</h2>
+      <p>Enter patient vitals to generate an AI-powered blood pressure health report.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">API Key</div>
+      <div class="form-row">
+        <label>X-API-Key — required to generate reports</label>
+        <input type="password" id="bp-api-key" placeholder="Paste your API key here…"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Patient Vitals</div>
+
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Systolic (mmHg)</label>
+          <input type="text" id="bp-systolic" placeholder="e.g. 120"/>
+        </div>
+        <div class="form-row">
+          <label>Diastolic (mmHg)</label>
+          <input type="text" id="bp-diastolic" placeholder="e.g. 80"/>
+        </div>
+        <div class="form-row">
+          <label>Heart Rate (bpm)</label>
+          <input type="text" id="bp-heart-rate" placeholder="e.g. 72"/>
+        </div>
+      </div>
+
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Age (years)</label>
+          <input type="text" id="bp-age" placeholder="e.g. 35"/>
+        </div>
+        <div class="form-row">
+          <label>Weight</label>
+          <input type="text" id="bp-weight" placeholder="e.g. 70 kg"/>
+        </div>
+        <div class="form-row">
+          <label>Height</label>
+          <input type="text" id="bp-height" placeholder="e.g. 175 cm"/>
+        </div>
+        <div class="form-row">
+          <label>Gender</label>
+          <select id="bp-gender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;display:flex;gap:10px;align-items:center;">
+        <button class="btn btn-primary" id="bp-generate-btn" onclick="generateBpReport()">
+          <div class="spinner" id="bp-spinner"></div>
+          Generate Report
+        </button>
+        <button class="btn btn-ghost" onclick="resetBpReport()">Clear</button>
+      </div>
+      <div class="alert" id="bp-alert"></div>
+    </div>
+
+    <!-- Report output rendered in an iframe so the HTML report styles are isolated -->
+    <div id="bp-report-section" style="display:none;">
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border);">
+          <span class="card-title" style="margin:0;">Generated Report</span>
+          <button class="btn btn-ghost" style="font-size:0.78rem;padding:6px 14px;" onclick="printBpReport()">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;">
+              <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Print / Save PDF
+          </button>
+        </div>
+        <iframe id="bp-report-frame" style="width:100%;border:none;min-height:700px;background:#fff;" title="BP Health Report"></iframe>
+      </div>
     </div>
   </div>
 
@@ -2202,6 +2292,78 @@ async function urduDeleteChatHistory() {
     showAlert('urdu-hist-alert', 'error', e.message);
   }
   setSpinner('urdu-del-spinner', false);
+}
+
+// ═══════════════════════════════════════════════════════
+//  BP REPORT
+// ═══════════════════════════════════════════════════════
+async function generateBpReport() {
+  const key = document.getElementById('bp-api-key').value.trim();
+  if (!key) { showAlert('bp-alert', 'error', 'Please enter your API key.'); return; }
+
+  const systolic   = parseInt(document.getElementById('bp-systolic').value.trim(), 10);
+  const diastolic  = parseInt(document.getElementById('bp-diastolic').value.trim(), 10);
+  const heart_rate = parseInt(document.getElementById('bp-heart-rate').value.trim(), 10);
+  const patient_age = parseInt(document.getElementById('bp-age').value.trim(), 10);
+  const patient_weight = document.getElementById('bp-weight').value.trim();
+  const patient_height = document.getElementById('bp-height').value.trim();
+  const patient_gender = document.getElementById('bp-gender').value;
+
+  if (!systolic || !diastolic || !heart_rate || !patient_age) {
+    showAlert('bp-alert', 'error', 'Systolic, diastolic, heart rate, and age are required numbers.');
+    return;
+  }
+  if (!patient_weight || !patient_height) {
+    showAlert('bp-alert', 'error', 'Weight and height are required.');
+    return;
+  }
+
+  setSpinner('bp-spinner', true);
+  document.getElementById('bp-generate-btn').disabled = true;
+  showAlert('bp-alert', 'info', 'Generating report, this may take a few seconds…');
+
+  try {
+    const res = await fetch('/api/bp-report/health-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+      body: JSON.stringify({ systolic, diastolic, heart_rate, patient_age, patient_weight, patient_height, patient_gender })
+    });
+
+    if (res.ok) {
+      const html = await res.text();
+      const frame = document.getElementById('bp-report-frame');
+      frame.srcdoc = html;
+      document.getElementById('bp-report-section').style.display = 'block';
+      document.getElementById('bp-report-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showAlert('bp-alert', 'success', 'Report generated successfully.');
+    } else {
+      let detail = 'Failed to generate report.';
+      try { const err = await res.json(); detail = err.detail || detail; } catch(_) {}
+      showAlert('bp-alert', 'error', detail);
+    }
+  } catch(e) {
+    showAlert('bp-alert', 'error', 'Connection error: ' + e.message);
+  }
+
+  setSpinner('bp-spinner', false);
+  document.getElementById('bp-generate-btn').disabled = false;
+}
+
+function resetBpReport() {
+  ['bp-systolic','bp-diastolic','bp-heart-rate','bp-age','bp-weight','bp-height'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('bp-gender').value = 'male';
+  document.getElementById('bp-report-section').style.display = 'none';
+  document.getElementById('bp-report-frame').srcdoc = '';
+  hideAlert('bp-alert');
+}
+
+function printBpReport() {
+  const frame = document.getElementById('bp-report-frame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.print();
+  }
 }
 
 // ═══════════════════════════════════════════════════════

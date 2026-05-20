@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Improvement Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: Urbanist, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+            letter-spacing: 0.15px;
+            line-height: auto;
+        }
+
+        .report-container {
+            max-width: 800px;
+            margin: auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 1.2em;
+            color: #2980b9;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .patient-info-box {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, auto);
+            gap: 15px;
+            padding: 20px;
+            border: 2px solid #2980b9;
+            border-radius: 8px;
+            background-color: #ecf0f1;
+            margin-bottom: 20px;
+        }
+
+        .patient-info-box b {
+            margin: 0;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .patient-info-box p {
+            display: inline;
+            color: #34495e;
+            font-weight: normal;
+        }
+
+        .clinical-findings p {
+            font-weight: bold;
+            /* Ensure headings are bold */
+            color: #34495e;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+
+        .clinical-findings .value {
+            font-weight: normal;
+            /* Ensure values are not bold */
+            color: #34495e;
+            margin-bottom: 35px;
+        }
+
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.8em;
+            color: #777;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="report-container">
+        <h1>Health Improvement Report</h1>
+        <h2>Patient Information</h2>
+
+        <div class="patient-info-box">
+            <div>
+                <b>Age:</b>
+                <p>{{ Patient_Age }}</p>
+            </div>
+            <div>
+                <b>Gender:</b>
+                <p>{{ Patient_Gender }}</p>
+            </div>
+            <div>
+                <b>Height:</b>
+                <p>{{ Patient_Height }}</p>
+            </div>
+            <div>
+                <b>Weight:</b>
+                <p>{{ Patient_Weight }}</p>
+            </div>
+            <div>
+                <b>BP:</b>
+                <p>{{ systolic }}/{{ diastolic }} mmHg</p>
+            </div>
+            <div>
+                <b>Heart Rate:</b>
+                <p>{{ heart_rate }} bpm</p>
+            </div>
+        </div>
+
+        <h2>Clinical Findings</h2>
+        <div class="clinical-findings">
+            <p>Interpretation</p>
+            <p class="value">{{ Interpretation }}</p>
+
+            <p>Caution</p>
+            <p class="value">{{ Caution }}</p>
+
+            <p>Medication</p>
+            <p class="value">{{ Medication }}</p>
+
+            <p>Nutrition</p>
+            <p class="value">{{ Nutrition }}</p>
+
+            <p>Physical Activity</p>
+            <p class="value">{{ Physical_Activity }}</p>
+
+            <p>Mental Health</p>
+            <p class="value">{{ Mental_Health }}</p>
+
+            <p>Preventive Care</p>
+            <p class="value">{{ Preventive_Care }}</p>
+
+            <p>Sleep Hygiene</p>
+            <p class="value">{{ Sleep_Hygiene }}</p>
+
+            <p>Avoid Harmful Behaviors</p>
+            <p class="value">{{ Avoid_Harmful_Behaviors }}</p>
+        </div>
+
+        <footer>
+            <p>&copy; All Rights Reserved</p>
+        </footer>
+    </div>
+
+</body>
+
+</html>
