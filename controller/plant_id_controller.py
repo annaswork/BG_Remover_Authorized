@@ -514,18 +514,10 @@ async def search_plant(query_params: dict) -> dict:
     urls = scrape_thumbnails(driver,common_name + " plant")
     image_urls = download_thumbnails(urls, common_name, base_url=BASE_URL)
 
-    img_avail=True
+    profile['image_urls'] = image_urls
+    profile['img_avail'] = True
 
-    await plant_crud.upsert_plant_full_info(
-        db=db,
-        scientific_name=target_name,
-        common_name=common_name,
-        profile_data=profile,
-        family=family,
-        genus=genus,
-        image_urls=image_urls,
-        img_avail=img_avail
-    )
+    await plant_crud.upsert_plant_full_info(db=db, scientific_name=target_name, common_name=common_name, profile_data=profile, family=family, genus=genus)
     print(f"[Search] Saved full info to DB: {target_name}")
     
     return {
