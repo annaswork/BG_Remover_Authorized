@@ -10,7 +10,7 @@ _api_key = os.getenv("BP_REPORT_KEY") or os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=_api_key)
 
 
-def search_gpt(prompt: str) -> str:
+def search_gpt(prompt: str, system_prompt: str) -> str:
     """
     Send a prompt to GPT and return the raw text response.
     Returns an empty string on failure.
@@ -21,10 +21,7 @@ def search_gpt(prompt: str) -> str:
             messages=[
                 {
                     "role": "system",
-                    "content": (
-                        "You are a helpful Physician who will help me "
-                        "with how to improve health outcomes."
-                    ),
+                    "content": system_prompt,
                 },
                 {
                     "role": "user",

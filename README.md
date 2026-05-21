@@ -18,6 +18,7 @@ A FastAPI-based background removal service with API key authorization, per-app a
   - [Urdu Shayari](#urdu-shayari)
   - [BP Health Report](#bp-health-report)
   - [Object Remover](#object-remover)
+  - [Animals Identifier](#animals-identifier)
 - [Authentication](#authentication)
 - [Web Dashboard](#web-dashboard)
 
@@ -47,6 +48,7 @@ BG_Remover_Authorized/
 │   ├── plant_id_router.py        # Plant identification routes
 │   ├── bp_report_router.py       # BP health report routes
 │   ├── object_remover_router.py  # Object remover routes (LaMa + SAM)
+│   ├── animals_router.py         # Animals Identification routes (dog, insect, spider)
 │   └── urdu_ai_router.py         # Urdu Shayari AI (OpenAI + MongoDB)
 │
 ├── controller/
@@ -57,6 +59,7 @@ BG_Remover_Authorized/
 │   ├── plant_id_controller.py    # Plant ID logic
 │   ├── bp_report_controller.py   # BP report logic (GPT prompt + HTML render)
 │   ├── object_remover_controller.py  # Object remover logic (LaMa inpainting + SAM segmentation)
+│   ├── animals_controller.py     # Animals Identification logic
 │   └── urdu_ai_controller.py     # Urdu personas, streaming poetry/chat, chat history
 │
 ├── analytics/
@@ -115,6 +118,7 @@ Central configuration. Loads `.env` and exposes all constants:
 - `ADMIN_API_KEY` — master key for admin-only operations
 - `ANALYTICS_COLLECTION_NAME`, `AUTHORIZATION_COLLECTION_NAME` — MongoDB collection names
 - `IMAGE_PATH`, `IMAGE_URL_PREFIX` — output file paths
+- `BASE_URL` — Base URL for external services (e.g. animal and plant images)
 
 ### `inits/server_init.py`
 Initializes the FastAPI app instance with title, description, version. Mounts `/static` and `/templates` directories. Configures CORS (all origins), registers a `ThreadPoolExecutor` for CPU-bound tasks, and enables HEIF image support via `pillow_heif`.
@@ -184,6 +188,7 @@ ANALYTICS_DATABASE=analytics
 AUTHORIZATION_DATABASE=authorization
 SECRET_KEY=your-secret-key-here
 ADMIN_API_KEY=your-admin-key-here
+BASE_URL=http://aiapps.thetatechnologies.co
 
 # Optional — Urdu Shayari AI (/api/urdu-shayari)
 OPENAI_API_KEY=sk-...
@@ -396,6 +401,75 @@ Features: AI-powered object removal using LaMa (inpainting) and SAM (segmentatio
 | `POST` | `/api/object-remover/inpaint-file` | `X-API-Key` | Remove object using file uploads |
 | `POST` | `/api/object-remover/sam` | `X-API-Key` | Generate segmentation mask from click points |
 | `DELETE` | `/api/object-remover/clear-results` | `X-API-Key` | Delete all saved result images |
+
+---
+
+### Animals Identifier
+
+Base prefix: **`/api/animals`**
+
+Features: Identify dog breeds, insects, and spiders using AI, providing detailed information and scraped image results.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/animals/dog-breed-identifier/search` | None | Identify dog breeds and fetch scraped images |
+| `POST` | `/api/animals/insect-identifier/search` | None | Identify insects and get detailed descriptions |
+| `POST` | `/api/animals/spider-identifier/search` | None | Identify spiders and get detailed descriptions |
+
+#### `POST /api/animals/dog-breed-identifier/search`
+**Body:**
+```json
+{
+  "labels": ["Golden Retriever", "German Shepherd"]
+}
+```
+**Response:**
+```json
+[
+  {
+    "dog_breed": "Golden Retriever",
+    "dog_info": "<HTML rendered dog info block>",
+    "dog_images": [
+      "http://host:port/static/animals/golden_retriever_1.webp",
+      "http://host:port/static/animals/golden_retriever_2.webp"
+    ]
+  }
+]
+```
+
+#### `POST /api/animals/insect-identifier/search`
+**Body:**
+```json
+{
+  "labels": ["Monarch Butterfly"]
+}
+```
+**Response:**
+```json
+[
+  {
+    "insect_name": "Monarch Butterfly",
+    "insect_info": "<HTML rendered insect info block>"
+  }
+]
+```
+
+#### `POST /api/animals/spider-identifier/search`
+**Body:**
+```json
+{
+  "labels": ["Black Widow"]
+}
+```
+**Response:**
+```json
+[
+  {
+    "spider_name": "Black Widow",
+    "spider_info": "<HTML rendered spider info block>"
+  }
+]
+```
 
 ---
 

@@ -51,6 +51,7 @@ Create Required folders (
 """
 os.makedirs(config_.STATIC_DIR + "/results", exist_ok=True)
 os.makedirs(config_.STATIC_DIR + "/plants", exist_ok=True)
+os.makedirs(config_.STATIC_DIR + "/animals", exist_ok=True)
 app.mount(
     f"/{config_.STATIC_DIR}",
     StaticFiles(directory=config_.STATIC_DIR),

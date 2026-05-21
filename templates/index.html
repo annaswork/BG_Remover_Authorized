@@ -258,6 +258,13 @@
     </svg>
     <span>BP Report</span>
   </div>
+  <div class="nav-item" data-nav="animals" onclick="navigate('animals')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M12 2C8 2 4 5 4 9c0 2.5 1.5 4.5 3 6l1 5h8l1-5c1.5-1.5 3-3.5 3-6 0-4-4-7-8-7z"/>
+      <path d="M9 9h.01M15 9h.01"/>
+    </svg>
+    <span>Animals Identifier</span>
+  </div>
 
   <div class="nav-section">Admin</div>
   <div class="nav-item" data-nav="authorization" onclick="navigate('authorization')">
@@ -1021,6 +1028,98 @@
     </div>
   </div>
 
+  <!-- ── ANIMALS IDENTIFIER PAGE ── -->
+  <div id="page-animals" class="page">
+    <div class="page-header">
+      <h2>Animals Identifier</h2>
+      <p>Identify dog breeds, insects, and spiders using AI. Enter one or more names to get detailed information.</p>
+    </div>
+
+    <!-- Tab selector -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <button class="btn btn-primary" id="animals-tab-dog" onclick="switchAnimalsTab('dog')">Dog Breeds</button>
+      <button class="btn btn-ghost" id="animals-tab-insect" onclick="switchAnimalsTab('insect')">Insects</button>
+      <button class="btn btn-ghost" id="animals-tab-spider" onclick="switchAnimalsTab('spider')">Spiders</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">API Key</div>
+      <div class="form-row">
+        <label>X-API-Key — required to process data</label>
+        <input type="password" id="animals-api-key" placeholder="Paste your API key here…"/>
+      </div>
+    </div>
+
+    <!-- DOG BREED PANEL -->
+    <div id="animals-panel-dog">
+      <div class="card">
+        <div class="card-title">Dog Breed Identifier</div>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">
+          Enter one or more dog breed names (comma-separated) to get breed info and images.
+        </p>
+        <div class="form-row">
+          <label>Breed Name(s)</label>
+          <input type="text" id="dog-breed-input" placeholder="e.g. Golden Retriever, Labrador, Poodle"/>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px;">
+          <button class="btn btn-primary" id="dog-search-btn" onclick="searchDogBreeds()">
+            <div class="spinner" id="dog-search-spinner"></div>
+            Search Breeds
+          </button>
+          <button class="btn btn-ghost" onclick="resetAnimals('dog')">Clear</button>
+        </div>
+        <div class="alert" id="dog-alert"></div>
+        <div id="dog-results" style="margin-top:20px;"></div>
+      </div>
+    </div>
+
+    <!-- INSECT PANEL -->
+    <div id="animals-panel-insect" style="display:none;">
+      <div class="card">
+        <div class="card-title">Insect Identifier</div>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">
+          Enter one or more insect names (comma-separated) to get detailed information.
+        </p>
+        <div class="form-row">
+          <label>Insect Name(s)</label>
+          <input type="text" id="insect-name-input" placeholder="e.g. Monarch Butterfly, Firefly, Honeybee"/>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px;">
+          <button class="btn btn-primary" id="insect-search-btn" onclick="searchInsects()">
+            <div class="spinner" id="insect-search-spinner"></div>
+            Search Insects
+          </button>
+          <button class="btn btn-ghost" onclick="resetAnimals('insect')">Clear</button>
+        </div>
+        <div class="alert" id="insect-alert"></div>
+        <div id="insect-results" style="margin-top:20px;"></div>
+      </div>
+    </div>
+
+    <!-- SPIDER PANEL -->
+    <div id="animals-panel-spider" style="display:none;">
+      <div class="card">
+        <div class="card-title">Spider Identifier</div>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">
+          Enter one or more spider names (comma-separated) to get detailed information.
+        </p>
+        <div class="form-row">
+          <label>Spider Name(s)</label>
+          <input type="text" id="spider-name-input" placeholder="e.g. Black Widow, Tarantula, Jumping Spider"/>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px;">
+          <button class="btn btn-primary" id="spider-search-btn" onclick="searchSpiders()">
+            <div class="spinner" id="spider-search-spinner"></div>
+            Search Spiders
+          </button>
+          <button class="btn btn-ghost" onclick="resetAnimals('spider')">Clear</button>
+        </div>
+        <div class="alert" id="spider-alert"></div>
+        <div id="spider-results" style="margin-top:20px;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── ADMIN LOGIN PAGE ── -->
   <div id="page-admin-login" class="page">
     <div id="admin-gate">
@@ -1083,7 +1182,7 @@
 
     <!-- Revoke / Restore -->
     <div class="card">
-      <div class="card-title">Revoke / Restore Key</div>
+      <div class="card-title">Revoke / Restore / Delete Key</div>
       <div class="form-row">
         <label>API Key</label>
         <input type="text" id="manage-key-input" placeholder="Paste full API key…"/>
@@ -1096,6 +1195,10 @@
         <button class="btn btn-success" onclick="restoreKey()">
           <div class="spinner" id="restore-spinner"></div>
           Restore
+        </button>
+        <button class="btn btn-danger" onclick="deleteKey()">
+          <div class="spinner" id="delete-spinner"></div>
+          Delete
         </button>
       </div>
       <div class="alert" id="manage-alert"></div>
@@ -1993,7 +2096,7 @@ function displayPlantProfile(profile) {
       imgContainer.style.cssText = 'position:relative;overflow:hidden;border-radius:8px;border:1px solid var(--border);background:var(--surface2);aspect-ratio:1;cursor:pointer;';
       
       const img = document.createElement('img');
-      img.src = url;
+      img.src = getLocalImageUrl(url);
       img.alt = 'Plant image';
       img.style.cssText = 'width:100%;height:100%;object-fit:cover;transition:transform 0.2s;';
       img.onerror = function() {
@@ -2430,6 +2533,30 @@ async function restoreKey() {
   setSpinner('restore-spinner', false);
 }
 
+async function deleteKey() {
+  const key = document.getElementById('manage-key-input').value.trim();
+  if (!key) { showAlert('manage-alert', 'error', 'Please enter an API key.'); return; }
+  
+  if (!confirm(`Are you sure you want to permanently delete this API key?\n\nKey: ${key}\n\nThis action cannot be undone.`)) {
+    return;
+  }
+  
+  setSpinner('delete-spinner', true);
+  try {
+    const res = await fetch(`/api/auth/delete-key?api_key=${encodeURIComponent(key)}`, {
+      method: 'DELETE', headers: { 'X-Admin-Key': adminKey }
+    });
+    const data = await res.json();
+    if (res.ok) { 
+      showAlert('manage-alert', 'success', data.message); 
+      document.getElementById('manage-key-input').value = '';
+      loadKeys(); 
+    }
+    else showAlert('manage-alert', 'error', data.detail || 'Failed.');
+  } catch(e) { showAlert('manage-alert', 'error', e.message); }
+  setSpinner('delete-spinner', false);
+}
+
 async function loadKeys() {
   try {
     const res = await fetch('/api/auth/keys', { headers: { 'X-Admin-Key': adminKey } });
@@ -2819,7 +2946,145 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
+function getLocalImageUrl(url) {
+  if (!url) return '';
+  if (url.includes('static/')) {
+    return 'static/' + url.split('static/', 2)[1];
+  }
+  return url;
+}
+
+
 // Admin key lives only in memory — cleared on page refresh (intentional)
+
+// ═══════════════════════════════════════════════════════
+//  ANIMALS IDENTIFIER
+// ═══════════════════════════════════════════════════════
+
+function switchAnimalsTab(tab) {
+  ['dog', 'insect', 'spider'].forEach(t => {
+    document.getElementById('animals-panel-' + t).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById('animals-tab-' + t);
+    btn.className = t === tab ? 'btn btn-primary' : 'btn btn-ghost';
+  });
+}
+
+function resetAnimals(type) {
+  document.getElementById(type + '-name-input') && (document.getElementById(type + '-name-input').value = '');
+  document.getElementById('dog-breed-input') && type === 'dog' && (document.getElementById('dog-breed-input').value = '');
+  document.getElementById(type + '-results').innerHTML = '';
+  hideAlert(type + '-alert');
+}
+
+function _parseLabels(raw) {
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function _renderAnimalCard(html, title) {
+  return `<div class="card" style="margin-bottom:12px;">
+    <div class="card-title">${escapeHtml(title)}</div>
+    <div>${html}</div>
+  </div>`;
+}
+
+async function searchDogBreeds() {
+  const apiKey = document.getElementById('animals-api-key').value.trim();
+  if (!apiKey) { showAlert('dog-alert', 'error', 'Please enter your API key.'); return; }
+  const raw = document.getElementById('dog-breed-input').value.trim();
+  if (!raw) { showAlert('dog-alert', 'error', 'Please enter at least one breed name.'); return; }
+  const labels = _parseLabels(raw);
+  setSpinner('dog-search-spinner', true);
+  document.getElementById('dog-search-btn').disabled = true;
+  document.getElementById('dog-results').innerHTML = '';
+  hideAlert('dog-alert');
+  try {
+    const res = await fetch('/api/animals/dog-breed-identifier/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify({ labels })
+    });
+    const data = await res.json();
+    if (!res.ok) { showAlert('dog-alert', 'error', data.error || 'Request failed.'); return; }
+    if (!data || !data.length) { showAlert('dog-alert', 'info', 'No results returned.'); return; }
+    const container = document.getElementById('dog-results');
+    data.forEach(item => {
+      let imagesHtml = '';
+      if (item.dog_images && item.dog_images.length) {
+        imagesHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">' +
+          item.dog_images.map(url => `<img src="${escapeHtml(getLocalImageUrl(url))}" style="width:120px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--border);" alt="${escapeHtml(item.dog_breed)}" loading="lazy"/>`).join('') +
+          '</div>';
+      }
+      container.innerHTML += _renderAnimalCard((item.dog_info || '') + imagesHtml, item.dog_breed);
+    });
+  } catch(e) {
+    showAlert('dog-alert', 'error', 'Connection error: ' + e.message);
+  } finally {
+    setSpinner('dog-search-spinner', false);
+    document.getElementById('dog-search-btn').disabled = false;
+  }
+}
+
+async function searchInsects() {
+  const apiKey = document.getElementById('animals-api-key').value.trim();
+  if (!apiKey) { showAlert('insect-alert', 'error', 'Please enter your API key.'); return; }
+  const raw = document.getElementById('insect-name-input').value.trim();
+  if (!raw) { showAlert('insect-alert', 'error', 'Please enter at least one insect name.'); return; }
+  const labels = _parseLabels(raw);
+  setSpinner('insect-search-spinner', true);
+  document.getElementById('insect-search-btn').disabled = true;
+  document.getElementById('insect-results').innerHTML = '';
+  hideAlert('insect-alert');
+  try {
+    const res = await fetch('/api/animals/insect-identifier/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify({ labels })
+    });
+    const data = await res.json();
+    if (!res.ok) { showAlert('insect-alert', 'error', data.error || 'Request failed.'); return; }
+    if (!data || !data.length) { showAlert('insect-alert', 'info', 'No results returned.'); return; }
+    const container = document.getElementById('insect-results');
+    data.forEach(item => {
+      container.innerHTML += _renderAnimalCard(item.insect_info || '', item.insect_name);
+    });
+  } catch(e) {
+    showAlert('insect-alert', 'error', 'Connection error: ' + e.message);
+  } finally {
+    setSpinner('insect-search-spinner', false);
+    document.getElementById('insect-search-btn').disabled = false;
+  }
+}
+
+async function searchSpiders() {
+  const apiKey = document.getElementById('animals-api-key').value.trim();
+  if (!apiKey) { showAlert('spider-alert', 'error', 'Please enter your API key.'); return; }
+  const raw = document.getElementById('spider-name-input').value.trim();
+  if (!raw) { showAlert('spider-alert', 'error', 'Please enter at least one spider name.'); return; }
+  const labels = _parseLabels(raw);
+  setSpinner('spider-search-spinner', true);
+  document.getElementById('spider-search-btn').disabled = true;
+  document.getElementById('spider-results').innerHTML = '';
+  hideAlert('spider-alert');
+  try {
+    const res = await fetch('/api/animals/spider-identifier/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify({ labels })
+    });
+    const data = await res.json();
+    if (!res.ok) { showAlert('spider-alert', 'error', data.error || 'Request failed.'); return; }
+    if (!data || !data.length) { showAlert('spider-alert', 'info', 'No results returned.'); return; }
+    const container = document.getElementById('spider-results');
+    data.forEach(item => {
+      container.innerHTML += _renderAnimalCard(item.spider_info || '', item.spider_name);
+    });
+  } catch(e) {
+    showAlert('spider-alert', 'error', 'Connection error: ' + e.message);
+  } finally {
+    setSpinner('spider-search-spinner', false);
+    document.getElementById('spider-search-btn').disabled = false;
+  }
+}
 
 </script>
 </body>

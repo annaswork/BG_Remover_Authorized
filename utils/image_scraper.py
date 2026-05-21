@@ -223,6 +223,12 @@ def create_driver(
     })
     driver.execute_cdp_cmd("Network.enable", {})
 
+    # Add a quick warmup navigation to stabilize the browser instance
+    try:
+        driver.get("https://www.google.com")
+    except Exception:
+        pass
+
     logger.info("Chrome driver created successfully (version %d).", chrome_version)
     return driver
 
@@ -259,8 +265,10 @@ def scrape_thumbnails(
         try:
             driver.get(f"https://www.google.com/search?q={query}&tbm=isch")
 
+            # Corrected: Use standard, valid expected conditions
+            from selenium.webdriver.support import expected_conditions as EC
             WebDriverWait(driver, page_load_timeout).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, "img[src]")) >= count
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "img[src]"))
             )
 
             driver.execute_script("window.scrollTo(0, 800);")

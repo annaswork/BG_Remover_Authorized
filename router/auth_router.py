@@ -62,3 +62,17 @@ async def revoke_key(api_key: str, _: bool = Depends(require_admin_key)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error revoking key: {str(e)}")
+
+
+@router.delete("/delete-key", response_model=dict)
+async def delete_key(api_key: str, _: bool = Depends(require_admin_key)):
+    """Permanently delete an API key."""
+    try:
+        success = await auth_db.delete_api_key(api_key)
+        if not success:
+            raise HTTPException(status_code=404, detail="API key not found.")
+        return {"message": "API key deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting key: {str(e)}")

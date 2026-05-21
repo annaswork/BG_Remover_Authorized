@@ -45,7 +45,8 @@ There should be no data other than the "value" keeping the given key:
         "Avoid_Harmful_Behaviors": "value"
     }}"""
 
-    raw = search_gpt(prompt)
+    system_prompt = "You are a helpful Physician who will help me with how to improve health outcomes."
+    raw = search_gpt(prompt, system_prompt)
     print("[bp_report] GPT raw response:", raw)
 
     if not raw:

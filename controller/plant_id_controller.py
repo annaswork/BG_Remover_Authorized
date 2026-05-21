@@ -19,6 +19,7 @@ from database import plant_crud
 import re
 
 from utils.image_scraper import scrape_thumbnails, download_thumbnails
+from config.index import BASE_URL
 
 try:
     from bson import ObjectId
@@ -511,7 +512,7 @@ async def search_plant(query_params: dict) -> dict:
 
     #Thumbnails scraped for required plant
     urls = scrape_thumbnails(driver,common_name + " plant")
-    image_urls = download_thumbnails(urls, common_name, base_url="http://aiapps.thetatechnologies.co")
+    image_urls = download_thumbnails(urls, common_name, base_url=BASE_URL)
 
     img_avail=True
 

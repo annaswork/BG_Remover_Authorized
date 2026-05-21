@@ -92,3 +92,13 @@ async def restore_api_key(api_key: str) -> bool:
         {"$set": {"is_active": True}}
     )
     return result.modified_count > 0
+
+
+async def delete_api_key(api_key: str) -> bool:
+    """Permanently delete an API key."""
+    db = get_authorization_db()
+    collection = db[AUTHORIZATION_COLLECTION_NAME]
+
+    result = await collection.delete_one({"api_key": api_key})
+    return result.deleted_count > 0
+

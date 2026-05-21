@@ -113,3 +113,6 @@ FAISS_INDEX_PATH = os.path.join(ROOT_DIR, "models", "plant_faiss_index.index")
 # Plant Metadata Path
 PLANT_METADATA_PATH = os.path.join(ROOT_DIR, "models", "embeddings_h14", "metadata.json")
 
+# Base URL for external services (e.g. animal and plant images)
+BASE_URL = os.getenv("BASE_URL", "http://aiapps.thetatechnologies.co")
+
