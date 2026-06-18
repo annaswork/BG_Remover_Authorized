@@ -2,7 +2,7 @@ from inits.server_init import app
 from database.index import lifespan
 from analytics.middleware import AnalyticsMiddleware
 from analytics.excluded_paths import EXCLUDE_PATHS
-from router.app_router import router as bg_router, page_router, admin_router
+from router.app_router import router as bg_router, page_router
 from router.face_app_router import router as face_router
 from router.analytics_router import router as analytics_router
 from router.auth_router import router as auth_router
@@ -28,4 +28,3 @@ app.include_router(plant_router)             # /api/plant-id
 app.include_router(urdu_ai_router)           # /api/urdu-shayari
 app.include_router(bp_report_router)         # /api/bp-report
 app.include_router(animals_router)           # /api/animals
-app.include_router(admin_router)             # /api/admin

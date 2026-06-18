@@ -2,8 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Depends, Request
 from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from controller.app_controller import remove_background, clear_static_subfolders
-from controller.auth_controller import require_api_key, require_admin_key
+from controller.app_controller import remove_background
+from controller.auth_controller import require_api_key
 import os, shutil
 import config.index as _config
 
@@ -70,18 +70,3 @@ async def clear_results():
         "deleted": deleted,
         "errors": errors,
     }
-
-
-admin_router = APIRouter(prefix="/api/admin", tags=["admin"])
-
-@admin_router.delete("/clear-static", response_model=dict)
-async def clear_static(
-    _auth: bool = Depends(require_admin_key),
-):
-    """
-    Delete all files inside every subfolder of static/.
-    Subfolder structure is preserved — only files are removed.
-    Requires admin key in the **X-Admin-Key** header.
-    """
-    result = clear_static_subfolders()
-    return {"status": "success", "message": "All static subfolders cleared.", **result}

@@ -1,4 +1,3 @@
-import os
 import rembg
 from rembg import new_session
 from fastapi import HTTPException, UploadFile
@@ -59,39 +58,3 @@ async def remove_background(file: UploadFile) -> dict:
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Background removal failed: {str(e)}")
-
-
-def clear_static_subfolders() -> dict:
-    """
-    Delete every file inside each direct subfolder of STATIC_DIR.
-    Subdirectory structure is preserved — only files are removed.
-    Operations are strictly confined to absolute paths inside STATIC_DIR.
-    """
-    static_dir = os.path.abspath(_config.STATIC_DIR)
-
-    if not os.path.isdir(static_dir):
-        raise HTTPException(status_code=404, detail="Static directory not found.")
-
-    deleted = 0
-    errors = []
-
-    for entry in os.scandir(static_dir):
-        if not entry.is_dir(follow_symlinks=False):
-            continue  # skip loose files at the top level of static/
-
-        subfolder = os.path.abspath(entry.path)
-
-        # Safety guard: ensure we never stray outside STATIC_DIR
-        if not subfolder.startswith(static_dir + os.sep):
-            continue
-
-        for file_entry in os.scandir(subfolder):
-            if not file_entry.is_file(follow_symlinks=False):
-                continue  # leave any nested subdirectories untouched
-            try:
-                os.remove(file_entry.path)
-                deleted += 1
-            except Exception as e:
-                errors.append({"file": file_entry.path, "error": str(e)})
-
-    return {"deleted": deleted, "errors": errors}
