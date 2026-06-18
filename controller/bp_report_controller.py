@@ -1,4 +1,5 @@
 import json
+import re
 from fastapi import HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
@@ -6,6 +7,18 @@ from pydantic import BaseModel
 from utils.chatgptFunction import search_gpt
 
 templates = Jinja2Templates(directory="templates")
+
+
+def _extract_json(text: str) -> str:
+    """
+    Strip markdown code fences and extract the first JSON object from text.
+    GPT sometimes wraps its response in ```json ... ``` or adds prose around it.
+    """
+    # Remove ```json ... ``` or ``` ... ``` fences
+    text = re.sub(r"```(?:json)?\s*", "", text).strip()
+    # Extract the first {...} block in case there is surrounding prose
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    return match.group(0) if match else text
 
 
 # ── Request schema ────────────────────────────────────────────────────────────
@@ -46,16 +59,16 @@ There should be no data other than the "value" keeping the given key:
     }}"""
 
     system_prompt = "You are a helpful Physician who will help me with how to improve health outcomes."
-    raw = search_gpt(prompt, system_prompt)
+    raw = search_gpt(prompt, system_prompt, json_mode=True)
     print("[bp_report] GPT raw response:", raw)
 
     if not raw:
         raise HTTPException(status_code=502, detail="GPT service returned an empty response.")
 
     try:
-        report = json.loads(raw)
+        report = json.loads(_extract_json(raw))
     except json.JSONDecodeError:
-        print("[bp_report] JSON decode error:", raw)
+        print("[bp_report] JSON decode error. Raw GPT response was:", raw)
         raise HTTPException(status_code=502, detail="GPT response could not be parsed as JSON.")
 
     # Merge patient vitals into the template context
