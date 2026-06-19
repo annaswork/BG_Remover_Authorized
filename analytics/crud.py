@@ -1,8 +1,22 @@
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from database.database_funcs import get_analytics_db
 from database.analytics_model import Analytics
 from config.index import ANALYTICS_COLLECTION_NAME
+
+# Pakistan Standard Time — UTC+5
+PKT = timezone(timedelta(hours=5))
+
+
+def _now_pkt() -> datetime:
+    return datetime.now(tz=PKT)
+
+
+def _pkt_date_label(ts: datetime) -> str:
+    """Convert a UTC or aware datetime to a PKT YYYY-MM-DD label."""
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts.astimezone(PKT).strftime("%Y-%m-%d")
 
 
 async def create_analytics_record(analytics: Analytics) -> dict:
@@ -219,7 +233,11 @@ async def get_ip_request_stats(
         {"$match": match_query},
         {"$project": {
             "client_ip": 1, "path": 1,
-            "date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}},
+            "date": {"$dateToString": {
+                "format": "%Y-%m-%d",
+                "date": "$timestamp",
+                "timezone": "Asia/Karachi",
+            }},
         }},
         {"$group": {
             "_id": {"client_ip": "$client_ip", "date": "$date", "path": "$path"},
@@ -244,7 +262,7 @@ async def get_ip_request_stats(
 async def delete_old_analytics(days: int = 90) -> int:
     db = get_analytics_db()
     collection = db[ANALYTICS_COLLECTION_NAME]
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = _now_pkt() - timedelta(days=days)
     result = await collection.delete_many({"timestamp": {"$lt": cutoff}})
     return result.deleted_count
 

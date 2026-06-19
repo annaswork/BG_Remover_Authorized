@@ -1,12 +1,20 @@
 from pydantic import BaseModel, Field, field_serializer
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from bson import ObjectId
+
+# Pakistan Standard Time — UTC+5 (no DST)
+PKT = timezone(timedelta(hours=5))
+
+
+def now_pkt() -> datetime:
+    """Return current time as a timezone-aware datetime in PKT (UTC+5)."""
+    return datetime.now(tz=PKT)
 
 # Analytics Models
 class Analytics(BaseModel):
     id: Optional[str] = Field(alias="_id", description="Analytics record ID", default=None)
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Analytics timestamp")
+    timestamp: datetime = Field(default_factory=now_pkt, description="Analytics timestamp (PKT, UTC+5)")
     method: str = Field(..., description="HTTP method")
     path: str = Field(..., description="Analytics path")
     status_code: int = Field(..., description="Analytics status code")

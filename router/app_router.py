@@ -1,9 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, Depends, Request
 from fastapi import HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from controller.app_controller import remove_background
 from controller.auth_controller import require_api_key
+from utils.session import verify_session_token, COOKIE_NAME
 import os, shutil
 import config.index as _config
 
@@ -18,8 +19,25 @@ async def read_root():
     return {"message": "BG Remover API is running"}
 
 
+@page_router.get("/login", response_class=HTMLResponse)
+async def serve_login(request: Request):
+    """Public login page — redirect to dashboard if already authenticated."""
+    token = request.cookies.get(COOKIE_NAME)
+    if verify_session_token(token):
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        headers={"content-type": "text/html; charset=utf-8"},
+    )
+
+
 @page_router.get("/", response_class=HTMLResponse)
 async def serve_ui(request: Request):
+    """Dashboard — redirect to login if session is missing or expired."""
+    token = request.cookies.get(COOKIE_NAME)
+    if not verify_session_token(token):
+        return RedirectResponse(url="/login", status_code=302)
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -43,7 +61,6 @@ async def remove_bg(
 async def clear_results():
     """
     Delete all files inside static/results to free up disk space.
-    Requires admin key in the **X-Admin-Key** header.
     """
     results_dir = _config.IMAGE_PATH
 

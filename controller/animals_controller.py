@@ -1,9 +1,7 @@
 import json
 from fastapi.templating import Jinja2Templates
 
-from inits.server_init import driver
 from utils.chatgptFunction import search_gpt
-from utils.image_scraper import scrape_thumbnails, download_thumbnails
 
 
 
@@ -57,13 +55,11 @@ def dog_info_search(app, data: dict, return_data: list) -> None:
     try:
         dog_breeds = data.get('breeds', [])
         for breed in dog_breeds:
-            urls = scrape_thumbnails(driver, breed + " dog")
-            image_urls = download_thumbnails(urls, breed, save_dir=ANIMALS_DIR, base_url=BASE_URL)
             dog_info = _search_dog_info(breed)
             return_data.append({
                 'dog_breed': breed,
                 'dog_info': dog_info,
-                'dog_images': image_urls,
+                'dog_images': [],
             })
     except Exception as e:
         return_data.clear()
@@ -109,13 +105,11 @@ def find_insect_image_and_info(app, data: dict, return_data: list) -> None:
     try:
         insect_names = data.get('labels', [])
         for insect_name in insect_names:
-            urls = scrape_thumbnails(driver, insect_name + " insect")
-            image_urls = download_thumbnails(urls, insect_name, save_dir=ANIMALS_DIR, base_url=BASE_URL)
             insect_info = _search_insect_info(insect_name)
             return_data.append({
                 'insect_name': insect_name,
                 'insect_info': insect_info,
-                'insect_images': image_urls,
+                'insect_images': [],
             })
     except Exception as e:
         return_data.clear()
@@ -161,13 +155,11 @@ def find_spider_image_and_info(app, data: dict, return_data: list) -> None:
     try:
         spider_names = data.get('labels', [])
         for spider_name in spider_names:
-            urls = scrape_thumbnails(driver, spider_name + " spider")
-            image_urls = download_thumbnails(urls, spider_name, save_dir=ANIMALS_DIR, base_url=BASE_URL)
             spider_info = _search_spider_info(spider_name)
             return_data.append({
                 'spider_name': spider_name,
                 'spider_info': spider_info,
-                'spider_images': image_urls,
+                'spider_images': [],
             })
     except Exception as e:
         return_data.clear()

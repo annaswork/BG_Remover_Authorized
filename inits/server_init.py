@@ -3,7 +3,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import atexit
 
 #Thread pool for creating threads
 from concurrent.futures import ThreadPoolExecutor
@@ -17,8 +16,6 @@ import config.index as config_
 #Dependecy for Face Analysis
 from insightface.app import FaceAnalysis
 
-#Importing image scraper for configuration during startup
-from utils.image_scraper import create_driver, shutdown_driver
 
 #============================================================================
 
@@ -30,8 +27,6 @@ app = FastAPI(
     author=config_.AUTHOR
 )
 
-driver= create_driver()
-atexit.register(shutdown_driver,driver)
 
 #Create and mount templates folder
 os.makedirs(config_.TEMPLATES_DIR, exist_ok=True)

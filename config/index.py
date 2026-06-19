@@ -43,6 +43,13 @@ URDU_SHAYARI_DATABASE = os.getenv("URDU_SHAYARI_DATABASE", "Urdu_Shayari")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
+
+# Web UI admin credentials (sourced from .env — never hardcoded)
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+# Session token lifetime in seconds (8 hours)
+SESSION_TTL = int(os.getenv("SESSION_TTL", "28800"))
 ANALYTICS_COLLECTION_NAME = "api_logs"
 AUTHORIZATION_COLLECTION_NAME = "api_keys"
 

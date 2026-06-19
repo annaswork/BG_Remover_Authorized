@@ -1,7 +1,7 @@
 from fastapi import HTTPException, UploadFile
 from fastapi.encoders import jsonable_encoder
 import asyncio
-from inits.server_init import thread_pool, driver
+from inits.server_init import thread_pool
 from inits.models_init import (
     bioclip_model,
     bioclip_preprocess,
@@ -18,7 +18,6 @@ from database.database_config import get_authorization_db
 from database import plant_crud
 import re
 
-from utils.image_scraper import scrape_thumbnails, download_thumbnails
 from config.index import BASE_URL
 
 try:
@@ -510,12 +509,10 @@ async def search_plant(query_params: dict) -> dict:
     # Save to MongoDB
     common_name = profile.get("common_name", target_name.split()[0])
 
-    #Thumbnails scraped for required plant
-    urls = scrape_thumbnails(driver,common_name + " plant")
-    image_urls = download_thumbnails(urls, common_name, base_url=BASE_URL)
+    image_urls = []
 
     profile['image_urls'] = image_urls
-    profile['img_avail'] = True
+    profile['img_avail'] = False
 
     await plant_crud.upsert_plant_full_info(db=db, scientific_name=target_name, common_name=common_name, profile_data=profile, family=family, genus=genus)
     print(f"[Search] Saved full info to DB: {target_name}")

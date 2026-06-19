@@ -1,5 +1,6 @@
 EXCLUDE_PATHS = [
     "/",
+    "/login",
     "/docs",
     "/redoc",
     "/openai.json",

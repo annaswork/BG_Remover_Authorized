@@ -1,10 +1,15 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 from datetime import datetime, timedelta
 from database.analytics_model import AnalyticsSummary
 import analytics.crud as analytics_db
+from controller.auth_controller import require_admin_session
 
-router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+router = APIRouter(
+    prefix="/api/analytics",
+    tags=["analytics"],
+    dependencies=[Depends(require_admin_session)],
+)
 
 @router.get("/filters-meta", response_model=dict)
 async def get_filters_meta():
