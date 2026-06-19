@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import authorization.index as auth_db
 from controller.auth_controller import require_admin_session
 from config.index import ADMIN_USERNAME, ADMIN_PASSWORD
-from utils.session import create_session_token, COOKIE_NAME, SESSION_TTL
+from utils.session import create_session_token, COOKIE_NAME
 
 router = APIRouter(prefix="/api/auth", tags=["authorization"])
 
@@ -37,8 +37,8 @@ async def login(body: LoginRequest, response: Response):
         key=COOKIE_NAME,
         value=token,
         httponly=True,
-        max_age=SESSION_TTL,
         samesite="lax",
+        # Session cookie (no max_age) — cleared on browser close / page refresh
         # secure=True,  # uncomment when serving over HTTPS
     )
     return {"message": "Login successful", "username": body.username}
@@ -47,7 +47,7 @@ async def login(body: LoginRequest, response: Response):
 @router.post("/logout", response_model=dict)
 async def logout(response: Response):
     """Clear the session cookie."""
-    response.delete_cookie(COOKIE_NAME)
+    response.delete_cookie(COOKIE_NAME, samesite="lax")
     return {"message": "Logged out."}
 
 

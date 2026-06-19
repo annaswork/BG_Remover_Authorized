@@ -1124,7 +1124,7 @@ function openRecordModal(record) {
   const statusColor = isError ? 'var(--warning)' : record.status_code >= 300 ? 'var(--accent2)' : 'var(--success)';
 
   const rows = [
-    ['TIMESTAMP',      formatDatePKT(record.timestamp)],
+    ['TIMESTAMP',      formatDatePKT(record.timestamp, record.timestamp_display)],
     ['APP NAME',       record.app_name || '—'],
     ['METHOD',         record.method || '—'],
     ['PATH',           `<span style="color:var(--accent2);font-family:monospace;">${escapeHtml(record.path || '—')}</span>`],
@@ -1932,7 +1932,7 @@ async function loadAnalytics() {
       const statusColor = isError ? 'badge-red' : r.status_code >= 300 ? 'badge-blue' : 'badge-green';
       const statusBadge = `<span class="badge ${statusColor} status-clickable" onclick="openRecordModal(currentAnalyticsRecords[${idx}])" title="Click for details">${r.status_code}</span>`;
       return `<tr>
-        <td style="color:var(--muted);white-space:nowrap;font-size:0.75rem;">${formatDatePKT(r.timestamp)}</td>
+        <td style="color:var(--muted);white-space:nowrap;font-size:0.75rem;">${formatDatePKT(r.timestamp, r.timestamp_display)}</td>
         <td>${r.app_name ? `<span class="badge badge-blue">${escapeHtml(r.app_name)}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
         <td><span class="badge badge-blue">${escapeHtml(r.method)}</span></td>
         <td style="font-size:0.75rem;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeAttr(r.path)}">${escapeHtml(r.path)}</td>
@@ -2250,34 +2250,39 @@ function formatDate(iso) {
   return new Date(iso).toLocaleString();
 }
 
-// PKT = UTC+5 — timestamps from backend are already in PKT with timezone offset (+05:00)
-// Parse them correctly without additional offset adjustment
-function formatDatePKT(iso) {
-  if (!iso) return '—';
+const PKT_TZ = 'Asia/Karachi';
+
+function _pktParts(iso) {
   const d = new Date(iso);
-  if (isNaN(d)) return iso;
-  // JavaScript parses ISO strings with timezone info correctly
-  // Use local time (getHours, etc.) which respects the embedded +05:00 offset
-  const pad = n => String(n).padStart(2,'0');
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const date = pad(d.getDate());
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
-  const seconds = pad(d.getSeconds());
-  return `${year}-${month}-${date} ${hours}:${minutes}:${seconds} PKT`;
+  if (isNaN(d)) return null;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PKT_TZ,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: true,
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t)?.value ?? '';
+  return { get };
+}
+
+function formatDatePKT(iso, display) {
+  if (display) return display;
+  if (!iso) return '—';
+  const p = _pktParts(iso);
+  if (!p) return iso;
+  return `${p.get('year')}-${p.get('month')}-${p.get('day')} ${p.get('hour')}:${p.get('minute')}:${p.get('second')} ${p.get('dayPeriod')}`;
 }
 
 function toPKTDate(iso) {
   if (!iso) return 'unknown';
   const d = new Date(iso);
   if (isNaN(d)) return iso.split('T')[0] || iso;
-  // Parse correctly respecting the timezone offset
-  const pad = n => String(n).padStart(2,'0');
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const date = pad(d.getDate());
-  return `${year}-${month}-${date}`;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: PKT_TZ,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
 function escapeHtml(value) {
@@ -2742,7 +2747,10 @@ function resetTranslation() {
 }
 
 // Initialize translation setup on load
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  const sessionActive = await initSessionLifecycle();
+  if (!sessionActive) return;
+
   initTranslateLanguages();
   setupTranslateUI();
   
@@ -2759,24 +2767,38 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
-  
-  // ── Session Validation on Page Load ──
-  // Verify session is still valid; logout & redirect if expired
-  validateSessionOnPageLoad();
 });
 
-// ── Session Validation Helper ──
+// ── Session: destroy on page refresh / unload ──
+function invalidateSessionSync() {
+  fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', keepalive: true });
+}
+
+async function initSessionLifecycle() {
+  const nav = performance.getEntriesByType('navigation')[0];
+  const isReload = nav && nav.type === 'reload';
+
+  if (isReload) {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    } catch (_) {}
+    window.location.replace('/login');
+    return false;
+  }
+
+  window.addEventListener('pagehide', invalidateSessionSync);
+  await validateSessionOnPageLoad();
+  return true;
+}
+
 async function validateSessionOnPageLoad() {
   try {
-    const res = await fetch('/api/auth/me', { method: 'GET' });
+    const res = await fetch('/api/auth/me', { method: 'GET', credentials: 'same-origin' });
     if (res.status === 401) {
-      // Session expired or invalid, logout & redirect to login
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
       window.location.replace('/login');
     }
-    // If 200, session is valid, page continues normally
   } catch (err) {
-    // Network error - allow page to continue (don't force logout on network issues)
     console.warn('Session validation check failed:', err);
   }
 }

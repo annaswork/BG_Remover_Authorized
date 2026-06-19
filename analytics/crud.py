@@ -1,3 +1,4 @@
+import re
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
 from database.database_funcs import get_analytics_db
@@ -12,11 +13,37 @@ def _now_pkt() -> datetime:
     return datetime.now(tz=PKT)
 
 
-def _pkt_date_label(ts: datetime) -> str:
-    """Convert a UTC or aware datetime to a PKT YYYY-MM-DD label."""
+def _ensure_pkt(ts: datetime) -> datetime:
+    """Normalize naive (legacy UTC) or aware datetimes to PKT."""
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
-    return ts.astimezone(PKT).strftime("%Y-%m-%d")
+    return ts.astimezone(PKT)
+
+
+def _format_timestamp_pkt(ts: datetime) -> str:
+    """Format a datetime as YYYY-MM-DD hh:mm:ss AM/PM in PKT."""
+    return _ensure_pkt(ts).strftime("%Y-%m-%d %I:%M:%S %p")
+
+
+def _pkt_date_label(ts: datetime) -> str:
+    """Convert a UTC or aware datetime to a PKT YYYY-MM-DD label."""
+    return _ensure_pkt(ts).strftime("%Y-%m-%d")
+
+
+def _ci_regex(value: str) -> dict:
+    """Case-insensitive substring match treating user input as literal text."""
+    return {"$regex": re.escape(value), "$options": "i"}
+
+
+def _serialize_analytics_record(record: dict) -> dict:
+    """Shift timestamp to PKT and attach a pre-formatted display string."""
+    out = dict(record)
+    ts = out.get("timestamp")
+    if ts is not None:
+        pkt = _ensure_pkt(ts)
+        out["timestamp"] = pkt.isoformat()
+        out["timestamp_display"] = _format_timestamp_pkt(pkt)
+    return out
 
 
 async def create_analytics_record(analytics: Analytics) -> dict:
@@ -53,17 +80,17 @@ async def get_analytics_records(
     if method:
         query["method"] = method
     if path:
-        query["path"] = {"$regex": path, "$options": "i"}
+        query["path"] = _ci_regex(path)
     if status_code:
         query["status_code"] = status_code
     if app_name:
-        query["app_name"] = {"$regex": app_name, "$options": "i"}
+        query["app_name"] = _ci_regex(app_name)
 
     records = []
     cursor = collection.find(query).sort("timestamp", -1).skip(skip).limit(limit)
     async for record in cursor:
         record["_id"] = str(record["_id"])
-        records.append(record)
+        records.append(_serialize_analytics_record(record))
     return records
 
 
@@ -88,11 +115,11 @@ async def count_analytics_records(
     if method:
         query["method"] = method
     if path:
-        query["path"] = {"$regex": path, "$options": "i"}
+        query["path"] = _ci_regex(path)
     if status_code:
         query["status_code"] = status_code
     if app_name:
-        query["app_name"] = {"$regex": app_name, "$options": "i"}
+        query["app_name"] = _ci_regex(app_name)
 
     return await collection.count_documents(query)
 
@@ -114,9 +141,9 @@ async def get_analytics_summary(
         if end_date:
             match_query["timestamp"]["$lte"] = end_date
     if path:
-        match_query["path"] = {"$regex": path, "$options": "i"}
+        match_query["path"] = _ci_regex(path)
     if app_name:
-        match_query["app_name"] = {"$regex": app_name, "$options": "i"}
+        match_query["app_name"] = _ci_regex(app_name)
 
     pipeline = [
         {"$match": match_query if match_query else {}},
@@ -179,9 +206,9 @@ async def get_bandwidth_stats(
         if end_date:
             match_query["timestamp"]["$lte"] = end_date
     if path:
-        match_query["path"] = {"$regex": path, "$options": "i"}
+        match_query["path"] = _ci_regex(path)
     if app_name:
-        match_query["app_name"] = {"$regex": app_name, "$options": "i"}
+        match_query["app_name"] = _ci_regex(app_name)
 
     pipeline = [
         {"$match": match_query if match_query else {}},
@@ -225,9 +252,9 @@ async def get_ip_request_stats(
         if end_date:
             match_query["timestamp"]["$lte"] = end_date
     if path:
-        match_query["path"] = {"$regex": path, "$options": "i"}
+        match_query["path"] = _ci_regex(path)
     if app_name:
-        match_query["app_name"] = {"$regex": app_name, "$options": "i"}
+        match_query["app_name"] = _ci_regex(app_name)
 
     pipeline = [
         {"$match": match_query},
@@ -289,11 +316,11 @@ async def delete_analytics_by_filter(
     if method:
         query["method"] = method
     if path:
-        query["path"] = {"$regex": path, "$options": "i"}
+        query["path"] = _ci_regex(path)
     if status_code:
         query["status_code"] = status_code
     if app_name:
-        query["app_name"] = {"$regex": app_name, "$options": "i"}
+        query["app_name"] = _ci_regex(app_name)
 
     # Safety check: don't allow deleting everything without any filter
     if not query:

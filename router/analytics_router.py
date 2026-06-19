@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 from datetime import datetime, timedelta
-from database.analytics_model import AnalyticsSummary
+from database.analytics_model import AnalyticsSummary, PKT
 import analytics.crud as analytics_db
 from controller.auth_controller import require_admin_session
 
@@ -10,6 +10,27 @@ router = APIRouter(
     tags=["analytics"],
     dependencies=[Depends(require_admin_session)],
 )
+
+
+def _parse_query_datetime(value: str, *, end_of_day: bool = False) -> datetime:
+    """Parse filter dates as PKT (UTC+5)."""
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            dt = datetime.strptime(value, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid date format. Use YYYY-MM-DD or ISO format",
+            )
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=PKT)
+    else:
+        dt = dt.astimezone(PKT)
+    if end_of_day and "T" not in value and " " not in value:
+        dt = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return dt
 
 @router.get("/filters-meta", response_model=dict)
 async def get_filters_meta():
@@ -39,24 +60,9 @@ async def get_analytics(
         start_dt = None
         end_dt = None
         if start_date:
-            try:
-                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-            except ValueError:
-                try:
-                    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-                except ValueError:
-                    raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD or ISO format")
-        
+            start_dt = _parse_query_datetime(start_date)
         if end_date:
-            try:
-                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-            except ValueError:
-                try:
-                    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                    # Set to end of day
-                    end_dt = end_dt.replace(hour=23, minute=59, second=59)
-                except ValueError:
-                    raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD or ISO format")
+            end_dt = _parse_query_datetime(end_date, end_of_day=True)
         
         records = await analytics_db.get_analytics_records(
             skip=skip,
@@ -104,27 +110,13 @@ async def get_analytics_summary(
         end_dt = None
         
         if days:
-            end_dt = datetime.utcnow()
+            end_dt = analytics_db._now_pkt()
             start_dt = end_dt - timedelta(days=days)
         else:
             if start_date:
-                try:
-                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                except ValueError:
-                    try:
-                        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="Invalid start_date format")
-            
+                start_dt = _parse_query_datetime(start_date)
             if end_date:
-                try:
-                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-                except ValueError:
-                    try:
-                        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                        end_dt = end_dt.replace(hour=23, minute=59, second=59)
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="Invalid end_date format")
+                end_dt = _parse_query_datetime(end_date, end_of_day=True)
         
         summary = await analytics_db.get_analytics_summary(
             start_date=start_dt,
@@ -156,27 +148,13 @@ async def get_bandwidth_stats(
         end_dt = None
         
         if days:
-            end_dt = datetime.utcnow()
+            end_dt = analytics_db._now_pkt()
             start_dt = end_dt - timedelta(days=days)
         else:
             if start_date:
-                try:
-                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                except ValueError:
-                    try:
-                        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="Invalid start_date format")
-            
+                start_dt = _parse_query_datetime(start_date)
             if end_date:
-                try:
-                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-                except ValueError:
-                    try:
-                        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                        end_dt = end_dt.replace(hour=23, minute=59, second=59)
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="Invalid end_date format")
+                end_dt = _parse_query_datetime(end_date, end_of_day=True)
         
         stats = await analytics_db.get_bandwidth_stats(
             start_date=start_dt,
@@ -227,27 +205,13 @@ async def get_ip_request_stats(
         end_dt = None
         
         if days:
-            end_dt = datetime.utcnow()
+            end_dt = analytics_db._now_pkt()
             start_dt = end_dt - timedelta(days=days)
         else:
             if start_date:
-                try:
-                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                except ValueError:
-                    try:
-                        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD or ISO format")
-            
+                start_dt = _parse_query_datetime(start_date)
             if end_date:
-                try:
-                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-                except ValueError:
-                    try:
-                        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                        end_dt = end_dt.replace(hour=23, minute=59, second=59)
-                    except ValueError:
-                        raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD or ISO format")
+                end_dt = _parse_query_datetime(end_date, end_of_day=True)
         
         stats = await analytics_db.get_ip_request_stats(
             start_date=start_dt,
@@ -324,24 +288,9 @@ async def delete_analytics_by_filter(
         start_dt = None
         end_dt = None
         if start_date:
-            try:
-                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-            except ValueError:
-                try:
-                    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-                except ValueError:
-                    raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD or ISO format")
-        
+            start_dt = _parse_query_datetime(start_date)
         if end_date:
-            try:
-                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-            except ValueError:
-                try:
-                    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                    # Set to end of day
-                    end_dt = end_dt.replace(hour=23, minute=59, second=59)
-                except ValueError:
-                    raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD or ISO format")
+            end_dt = _parse_query_datetime(end_date, end_of_day=True)
         
         deleted_count = await analytics_db.delete_analytics_by_filter(
             start_date=start_dt,
